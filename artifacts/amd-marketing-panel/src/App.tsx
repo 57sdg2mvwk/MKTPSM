@@ -49,9 +49,14 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import amdLogo from '@/assets/amd-logo-cropped.png';
 import './index.css';
 
 const queryClient = new QueryClient();
+
+function AmdLogo({ className = '' }: { className?: string }) {
+  return <img src={amdLogo} alt="AMD Marketing Digital" className={`block h-auto w-auto object-contain ${className}`} />;
+}
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Resumen operativo',
@@ -207,7 +212,7 @@ function Sidebar({ user, onClose }: { user: CurrentUser; onClose?: () => void })
     <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-3 py-4">
       <div className="flex items-center justify-between px-3 pb-7">
         <Link href="/dashboard" data-testid="link-brand" onClick={onClose} className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-[hsl(var(--primary))] font-extrabold tracking-[-.12em] text-[hsl(var(--primary-foreground))]">AMD</div>
+          <AmdLogo className="h-[28px] w-[66px]" />
           <div><p className="text-sm font-extrabold tracking-[.18em]">AMD</p><p className="mono text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Marketing digital</p></div>
         </Link>
         {onClose && <button data-testid="button-close-menu" onClick={onClose} className="rounded-md p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"><PanelLeftClose size={17} /></button>}
@@ -350,7 +355,7 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
         <div className="absolute -left-24 top-24 h-[420px] w-[420px] rounded-full border border-[hsl(var(--primary)/.12)]" />
         <div className="absolute -left-10 top-38 h-[300px] w-[300px] rounded-full border border-[hsl(var(--primary)/.08)]" />
         <div className="relative flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-[hsl(var(--primary))] font-extrabold tracking-[-.12em] text-[hsl(var(--primary-foreground))]">AMD</div>
+          <AmdLogo className="h-[42px] w-[100px]" />
           <p className="text-sm font-extrabold tracking-[.18em]">AMD <span className="font-medium tracking-normal text-[hsl(var(--muted-foreground))]">/ Marketing digital</span></p>
         </div>
         <div className="relative max-w-xl">
@@ -366,7 +371,7 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-[390px] fade-up">
           <div className="mb-10 lg:hidden">
-            <div className="mb-8 grid h-10 w-10 place-items-center rounded-lg bg-[hsl(var(--primary))] font-extrabold tracking-[-.12em] text-[hsl(var(--primary-foreground))]">AMD</div>
+            <AmdLogo className="mb-8 h-[46px] w-[108px]" />
             <p className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Acceso privado</p>
           </div>
           <p className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Bienvenida de nuevo</p>
