@@ -395,52 +395,52 @@ function DashboardPage() {
   return <div className="fade-up uppercase"><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rapida del estado de tus pedidos y actividad reciente." action={<Link href="/nuevo-pedido" data-testid="link-new-order-dashboard" className="inline-flex items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3.5 py-2 text-[10px] font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 uppercase"><Plus size={15} /> Nuevo pedido</Link>} />
      <div className="terminal-panel mb-2 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-4 uppercase">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-3`}><div className="mb-2 flex items-center justify-between uppercase"><p className="terminal-label text-[9px] uppercase">{label}</p><Icon size={14} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-2 uppercase"><p data-testid={`text-stat-${label}`} className="mono text-[16px] font-bold tracking-[-.08em] uppercase">{value}</p><p className="pb-0.5 text-right text-[8px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{detail}</p></div></div>)}</div>
     <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)] uppercase">
-     <section className="terminal-panel flex flex-col overflow-hidden max-h-[500px] uppercase"><div className="flex shrink-0 items-center justify-between border-b border-[hsl(var(--border))] px-3 py-2 bg-[hsl(var(--secondary))] uppercase"><div><p className="terminal-label uppercase">Actividad</p><h3 className="mt-1 text-[11px] font-bold uppercase">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={12} /></Link></div><div className="overflow-y-auto uppercase">{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-3 uppercase"><EmptyState icon={PackageCheck} title="Aun no hay actividad" description="Los pedidos nuevos apareceran aqui en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-3 inline-flex items-center gap-2 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Crear primer pedido <ArrowRight size={14} /></Link>} /></div>}</div></section>
+      <section className="terminal-panel flex max-h-[460px] flex-col overflow-hidden uppercase"><div className="flex shrink-0 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 uppercase"><div><p className="terminal-label text-[9px] uppercase">Actividad</p><h3 className="mt-0.5 text-[10px] font-bold uppercase">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1 text-[9px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={11} /></Link></div><div className="overflow-y-auto uppercase">{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-2 uppercase"><EmptyState icon={PackageCheck} title="Aun no hay actividad" description="Los pedidos nuevos apareceran aqui en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">Crear primer pedido <ArrowRight size={12} /></Link>} /></div>}</div></section>
       <div className="flex flex-col gap-2 uppercase">
-        <section className="terminal-panel p-3 uppercase">
-          <div className="mb-3 flex items-start justify-between uppercase">
+         <section className="terminal-panel p-2.5 uppercase">
+           <div className="mb-2 flex items-start justify-between uppercase">
             <div>
               <p className="terminal-label uppercase">Finanzas</p>
-              <h3 className="mt-1 text-[11px] font-bold uppercase">Credito mensual</h3>
+               <h3 className="mt-0.5 text-[10px] font-bold uppercase">Credito mensual</h3>
             </div>
-            <div className="grid h-6 w-6 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><DollarSign size={14} /></div>
+             <div className="grid h-5 w-5 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><DollarSign size={12} /></div>
           </div>
-          <div className="mb-2 space-y-2 uppercase">
-            <div className="flex justify-between text-[10px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+           <div className="mb-2 space-y-1.5 uppercase">
+             <div className="flex justify-between text-[9px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
               <span>Consumido</span>
               <span>Disponible</span>
             </div>
             <div className="h-1.5 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm uppercase">
               <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500 uppercase" style={{ width: `${(data.credit.spentUsd / data.credit.allowanceUsd) * 100}%` }} />
             </div>
-            <div className="flex justify-between font-mono text-[11px] font-bold uppercase">
+             <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
               <span className="text-[hsl(var(--foreground))] uppercase">{formatUsd(data.credit.spentUsd)}</span>
               <span className="text-[hsl(var(--primary))] uppercase">{formatUsd(data.credit.availableUsd)}</span>
             </div>
           </div>
-          <div className="space-y-3 border-t border-[hsl(var(--border))] pt-4 text-[10px] uppercase">
-            <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Asignacion total</span><span className="mono font-bold uppercase">{formatUsd(data.credit.allowanceUsd)}</span></div>
-            <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Reinicio</span><span className="mono font-bold uppercase">{formatDate(data.credit.resetsAt)}</span></div>
+           <div className="space-y-2 border-t border-[hsl(var(--border))] pt-3 text-[9px] uppercase">
+             <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Asignacion total</span><span className="mono font-bold uppercase">{formatUsd(data.credit.allowanceUsd)}</span></div>
+             <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Reinicio</span><span className="mono font-bold uppercase">{formatDate(data.credit.resetsAt)}</span></div>
           </div>
         </section>
 
-        <section className="terminal-panel p-3 uppercase">
-          <div className="mb-3 flex items-start justify-between uppercase">
+         <section className="terminal-panel p-2.5 uppercase">
+           <div className="mb-2 flex items-start justify-between uppercase">
             <div>
               <p className="terminal-label uppercase">Estado del sistema</p>
-              <h3 className="mt-1 text-[11px] font-bold uppercase">Sincronizacion</h3>
+               <h3 className="mt-0.5 text-[10px] font-bold uppercase">Sincronizacion</h3>
             </div>
             <Zap size={16} className="text-[hsl(var(--primary))] uppercase" />
           </div>
-          <div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-4 rounded-sm uppercase">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-[hsl(var(--primary))] uppercase"><span className="h-1.5 w-1.5 rounded-full bg-current uppercase" />Operativo</div>
-            <p data-testid="text-last-sync" className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-bold">Ultima sincronizacion<br /><span className="mono text-[hsl(var(--foreground))] font-normal tracking-normal text-[10px] uppercase">{formatDate(data.lastSyncAt)}</span></p>
+           <div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-3 rounded-sm uppercase">
+             <div className="flex items-center gap-2 text-[9px] font-bold text-[hsl(var(--primary))] uppercase"><span className="h-1.5 w-1.5 rounded-full bg-current uppercase" />Operativo</div>
+             <p data-testid="text-last-sync" className="mt-2 text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-bold">Ultima sincronizacion<br /><span className="mono text-[hsl(var(--foreground))] font-normal tracking-normal text-[9px] uppercase">{formatDate(data.lastSyncAt)}</span></p>
           </div>
-          <div className="mt-3 space-y-3 border-t border-[hsl(var(--border))] pt-5 uppercase">
-            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Pedidos registrados</span><span className="mono font-bold uppercase">{data.totalOrders}</span></div>
-            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Metricas pendientes</span><span className="mono font-bold uppercase">{data.metricsPendingOrders}</span></div>
-            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Atencion pendiente</span><span className="mono font-bold uppercase">{data.needsAttention}</span></div>
-            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Tasa de exito</span><span className="mono font-bold uppercase">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div>
+           <div className="mt-2 space-y-2 border-t border-[hsl(var(--border))] pt-3 uppercase">
+             <div className="flex justify-between text-[9px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Pedidos registrados</span><span className="mono font-bold uppercase">{data.totalOrders}</span></div>
+             <div className="flex justify-between text-[9px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Metricas pendientes</span><span className="mono font-bold uppercase">{data.metricsPendingOrders}</span></div>
+             <div className="flex justify-between text-[9px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Atencion pendiente</span><span className="mono font-bold uppercase">{data.needsAttention}</span></div>
+             <div className="flex justify-between text-[9px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Tasa de exito</span><span className="mono font-bold uppercase">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div>
           </div>
         </section>
       </div>
@@ -538,52 +538,52 @@ function NewOrderPage() {
   return <div className="fade-up uppercase">
     <PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." />
     <div className="grid gap-2 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,.7fr)] uppercase">
-      <form noValidate className="terminal-panel p-3 md:p-4 uppercase" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <div className="mb-3 flex items-center gap-3 border-b border-[hsl(var(--border))] pb-4 uppercase"><div className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><Target size={16} /></div><div><p className="terminal-label uppercase">Nueva solicitud</p><h3 className="mt-1 text-[11px] font-bold uppercase">Detalles del pedido</h3></div></div>
-        <div className="space-y-5 uppercase">
-           <div><span className="terminal-label mb-2 block uppercase">Red y servicio</span>
+       <form noValidate className="terminal-panel p-2.5 md:p-3 uppercase" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+         <div className="mb-2 flex items-center gap-2.5 border-b border-[hsl(var(--border))] pb-3 uppercase"><div className="grid h-7 w-7 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><Target size={14} /></div><div><p className="terminal-label text-[9px] uppercase">Nueva solicitud</p><h3 className="mt-0.5 text-[10px] font-bold uppercase">Detalles del pedido</h3></div></div>
+         <div className="space-y-3 uppercase">
+            <div><span className="terminal-label mb-1.5 block text-[9px] uppercase">Red y servicio</span>
              <div className="mb-2 flex flex-wrap gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-1 uppercase" role="tablist" aria-label="Red social">
                {platforms.map((platform) => (
                  <button key={platform} type="button" role="tab" aria-selected={selectedPlatform === platform} onClick={() => { setSelectedPlatform(platform); setSelectedContentType('TODOS'); setServiceId(''); }} className={`rounded-sm px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider transition ${selectedPlatform === platform ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}>{platform}</button>
                ))}
              </div>
-             <div className="mb-2 flex flex-col gap-2 sm:flex-row uppercase">
+              <div className="mb-1.5 flex flex-col gap-1.5 sm:flex-row uppercase">
                <div className="relative flex-1 uppercase"><Search size={13} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))] uppercase" /><input value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder="Buscar por nombre o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] py-2 pl-8 pr-3 text-[10px] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div>
                <span className="terminal-label self-center text-[8px] uppercase">{filteredServices.length} resultado{filteredServices.length === 1 ? '' : 's'}</span>
              </div>
-             <div className="mb-2 flex flex-wrap gap-1 border-b border-[hsl(var(--border))] pb-2 uppercase" role="tablist" aria-label="Tipo de servicio">
+              <div className="mb-1.5 flex flex-wrap gap-1 border-b border-[hsl(var(--border))] pb-1.5 uppercase" role="tablist" aria-label="Tipo de servicio">
                {contentTypes.map((type) => (
                  <button key={type} type="button" role="tab" aria-selected={selectedContentType === type} onClick={() => setSelectedContentType(type)} className={`rounded-sm border px-2 py-1 text-[8px] font-bold uppercase tracking-wider transition ${selectedContentType === type ? 'border-[hsl(var(--primary)/.5)] bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}`}>{type}</button>
                ))}
              </div>
-             <div className="space-y-1.5 uppercase">
+              <div className="space-y-1 uppercase">
                {filteredServices.length ? filteredServices.map((service) => (
-                 <div key={service.id} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))] rounded-sm uppercase">
-                    <label key={service.id} className={`flex cursor-pointer items-start gap-3 px-3 py-3 transition hover:bg-[hsl(var(--secondary)/.5)] ${selected?.id === service.id ? 'bg-[hsl(var(--primary)/.07)]' : ''}`}>
-                      <input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]" />
+                  <div key={service.id} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))] rounded-sm uppercase">
+                     <label key={service.id} className={`flex cursor-pointer items-start gap-2.5 px-2.5 py-2 transition hover:bg-[hsl(var(--secondary)/.5)] ${selected?.id === service.id ? 'bg-[hsl(var(--primary)/.07)]' : ''}`}>
+                       <input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[hsl(var(--primary))]" />
                       <span className="min-w-0 flex-1 uppercase">
-                        <span className="block text-[11px] font-bold flex items-center gap-2 uppercase">
+                         <span className="block text-[10px] font-bold flex items-center gap-1.5 uppercase">
                           {service.name}
-                          <span className="mono text-[9px] px-1 rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] uppercase">ID:{service.id}</span>
+                           <span className="mono text-[8px] px-1 rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] uppercase">ID:{service.id}</span>
                         </span>
-                        <span className="mt-1 block text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span>
-                        <div className="mt-2 flex flex-wrap gap-2 uppercase">
+                         <span className="mt-0.5 block text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span>
+                         <div className="mt-1.5 flex flex-wrap gap-1 uppercase">
                           {service.pricePerThousandUsd != null && (
-                            <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--primary))] bg-[hsl(var(--primary)/.05)] rounded-sm">
+                             <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--primary))] bg-[hsl(var(--primary)/.05)] rounded-sm">
                                {formatUsd(service.pricePerThousandUsd)} / 1K
                             </span>
                           )}
                            {service.isDataSufficient && service.tags.map((tag) => (
-                             <span key={tag} className="inline-flex items-center border border-[hsl(var(--accent)/.35)] bg-[hsl(var(--accent)/.07)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--accent))] rounded-sm">{tag}</span>
+                              <span key={tag} className="inline-flex items-center border border-[hsl(var(--accent)/.35)] bg-[hsl(var(--accent)/.07)] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--accent))] rounded-sm">{tag}</span>
                            ))}
                            {service.isDataSufficient && service.completionRate != null && (
-                            <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] rounded-sm">
+                             <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] rounded-sm">
                               <CheckCircle2 size={10} className="text-[hsl(var(--accent))] uppercase" />
                               {service.completionRate}% exito
                             </span>
                           )}
                            {service.isDataSufficient && service.medianDurationMinutes != null && (
-                            <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] rounded-sm">
+                             <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] rounded-sm">
                               <Clock3 size={10} />
                               ~{service.medianDurationMinutes} min
                             </span>
@@ -605,7 +605,7 @@ function NewOrderPage() {
         {success && <p className="mt-3 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-[11px] text-[hsl(var(--accent))] rounded-sm uppercase">{success}</p>}
         <div className="mt-3 flex justify-end uppercase"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
       </form>
-       <aside className="terminal-panel h-fit p-3 uppercase"><p className="terminal-label uppercase">Vista previa</p>{selected ? <div className="mt-3 uppercase"><div className="mb-2 flex items-start justify-between gap-3 uppercase"><div><h3 className="text-[11px] font-bold uppercase">{selected.name}</h3><p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={15} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-3 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-3 uppercase"><p className="terminal-label text-[8px] uppercase">Precio directo / 1K</p><p className="mono mt-2 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatUsd(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-3 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-2 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatUsd(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-3 uppercase"><Clock3 size={14} className="mb-2 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-1 text-[10px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-3 uppercase"><RefreshCw size={14} className="mb-2 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-1 text-[10px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[205px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={18} className="mb-3 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[11px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
+        <aside className="terminal-panel h-fit p-2.5 uppercase"><p className="terminal-label text-[9px] uppercase">Vista previa</p>{selected ? <div className="mt-2 uppercase"><div className="mb-2 flex items-start justify-between gap-2 uppercase"><div><h3 className="text-[10px] font-bold uppercase">{selected.name}</h3><p className="mt-0.5 text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={14} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-2 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Precio directo / 1K</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatUsd(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatUsd(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><Clock3 size={12} className="mb-1.5 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><RefreshCw size={12} className="mb-1.5 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[175px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={17} className="mb-2 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[10px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
   </div>;
 }
