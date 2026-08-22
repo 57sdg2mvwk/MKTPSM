@@ -19,7 +19,29 @@ import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso"];
-const configuredServiceIds = new Set(["4665"]);
+const configuredServiceIds = new Set(["4665", "4668", "11161"]);
+
+const validateLinkForPlatform = (platform: string, value: string) => {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (!["http:", "https:"].includes(url.protocol) || !url.pathname || url.pathname === "/") return false;
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const allowedHosts: Record<string, string[]> = {
+    Facebook: ["facebook.com", "m.facebook.com", "fb.watch"],
+    Instagram: ["instagram.com"],
+    TikTok: ["tiktok.com"],
+    YouTube: ["youtube.com", "youtu.be"],
+    Twitter: ["twitter.com", "x.com"],
+    Telegram: ["t.me", "telegram.me", "telegram.org"],
+    Spotify: ["spotify.com", "open.spotify.com"],
+  };
+  const allowed = allowedHosts[platform];
+  return !allowed || allowed.some((domain) => host === domain || host.endsWith(`.${domain}`));
+};
 
 const ensureServices = async () => {
   const existing = await db.select().from(servicesTable);
@@ -135,13 +157,17 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
   const user = await requireUser(req, res);
   if (!user) return;
   const parsed = CreateOrderBody.safeParse(req.body);
-  if (!parsed.success || !/^https?:\/\/.+/i.test(parsed.data?.link ?? "")) {
+  if (!parsed.success) {
     res.status(400).json({ error: "Revisa los datos del pedido." });
     return;
   }
   let [service] = await db.select().from(servicesTable).where(eq(servicesTable.id, parsed.data.serviceId)).limit(1);
   if (configuredServiceIds.has(parsed.data.serviceId)) {
     [service] = (await syncLiveServices()).filter((candidate) => candidate.id === parsed.data.serviceId);
+  }
+  if (!service || !validateLinkForPlatform(service.platform, parsed.data.link)) {
+    res.status(400).json({ error: `El enlace debe corresponder a ${service?.platform ?? "la red social"} y apuntar a un contenido válido.` });
+    return;
   }
   if (!service || parsed.data.quantity < service.minQuantity || parsed.data.quantity > service.maxQuantity) {
     res.status(400).json({ error: "La cantidad no está disponible para este servicio." });

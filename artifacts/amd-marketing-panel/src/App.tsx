@@ -95,6 +95,31 @@ function statusLabel(status: string) {
   return status;
 }
 
+function validateLinkForPlatform(platform: string, value: string) {
+  if (!value.trim()) return 'Introduce el enlace de destino.';
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return 'Introduce una URL válida, incluyendo https://.';
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return 'Usa un enlace http:// o https://.';
+  const host = url.hostname.toLowerCase().replace(/^www\./, '');
+  const allowedHosts: Record<string, string[]> = {
+    Facebook: ['facebook.com', 'm.facebook.com', 'fb.watch'],
+    Instagram: ['instagram.com'],
+    TikTok: ['tiktok.com'],
+    YouTube: ['youtube.com', 'youtu.be'],
+    Twitter: ['twitter.com', 'x.com'],
+    Telegram: ['t.me', 'telegram.me', 'telegram.org'],
+    Spotify: ['spotify.com', 'open.spotify.com'],
+  };
+  const allowed = allowedHosts[platform];
+  if (allowed && !allowed.some((domain) => host === domain || host.endsWith(`.${domain}`))) return `Este servicio requiere un enlace de ${platform}.`;
+  if (!url.pathname || url.pathname === '/') return 'El enlace debe apuntar a una publicación, perfil o contenido específico.';
+  return undefined;
+}
+
 function statusTone(status: string) {
   const value = status.toLowerCase();
   if (value.includes('cancel')) return 'danger';
@@ -286,6 +311,7 @@ function NewOrderPage() {
   const [errors, setErrors] = useState<{ service?: string; link?: string; quantity?: string }>({});
   const [success, setSuccess] = useState('');
   const selected = useMemo(() => services?.find((service) => service.id === serviceId), [services, serviceId]);
+  const liveLinkError = selected && link.trim() ? validateLinkForPlatform(selected.platform, link) : undefined;
   const serviceGroups = useMemo(() => {
     const groups = new Map<string, Service[]>();
     for (const service of services ?? []) groups.set(service.platform, [...(groups.get(service.platform) ?? []), service]);
@@ -294,7 +320,8 @@ function NewOrderPage() {
   const validate = () => {
     const next: typeof errors = {};
     if (!serviceId) next.service = 'Selecciona un servicio.';
-    if (!link.trim() || !/^https?:\/\/.+/i.test(link.trim())) next.link = 'Introduce un enlace válido, incluyendo https://.';
+    if (!selected) next.link = 'Selecciona un servicio antes de indicar el enlace.';
+    else next.link = validateLinkForPlatform(selected.platform, link);
     const amount = Number(quantity);
     if (!quantity || !Number.isInteger(amount) || amount < (selected?.minQuantity ?? 1) || amount > (selected?.maxQuantity ?? Number.MAX_SAFE_INTEGER)) next.quantity = selected ? `Indica una cantidad entre ${selected.minQuantity.toLocaleString('es-ES')} y ${selected.maxQuantity.toLocaleString('es-ES')}.` : 'Indica una cantidad válida.';
     setErrors(next);
@@ -320,7 +347,7 @@ function NewOrderPage() {
         <div className="mb-6 flex items-center gap-3 border-b border-[hsl(var(--border))] pb-4"><div className="grid h-8 w-8 place-items-center rounded-md border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]"><Target size={16} /></div><div><p className="terminal-label">Nueva solicitud</p><h3 className="mt-1 text-sm font-semibold">Detalles del pedido</h3></div></div>
         <div className="space-y-5">
           <div><span className="terminal-label mb-2 block">Red social / servicio</span><div className="space-y-3">{serviceGroups.map(([platform, platformServices]) => <section key={platform} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-3 py-2.5"><span className="text-xs font-semibold uppercase tracking-[.08em]">{platform}</span><span className="terminal-label text-[8px]">{platformServices.length} servicio{platformServices.length === 1 ? '' : 's'}</span></div><div className="divide-y divide-[hsl(var(--border))]">{platformServices.map((service) => <label key={service.id} className={`flex cursor-pointer items-start gap-3 px-3 py-3 transition hover:bg-[hsl(var(--secondary)/.5)] ${selected?.id === service.id ? 'bg-[hsl(var(--primary)/.07)]' : ''}`}><input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]" /><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{service.name}</span><span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span></span>{selected?.id === service.id && <Check size={15} className="mt-0.5 shrink-0 text-[hsl(var(--primary))]" />}</label>)}</div></section>)}</div>{errors.service && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.service}</span>}</div>
-          <label className="block"><span className="terminal-label mb-2 block">Enlace de destino</span><div className="relative"><Link2 size={15} className="absolute left-3 top-3 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-order-link" value={link} onChange={(event) => { setLink(event.target.value); setErrors((current) => ({ ...current, link: undefined })); }} placeholder="https://..." className={`w-full rounded-md border bg-[hsl(var(--background))] py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.link ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} /></div>{errors.link && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.link}</span>}</label>
+          <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Enlace de destino</span>{selected && <span className="terminal-label text-[8px]">Solo {selected.platform}</span>}</div><div className="relative"><Link2 size={15} className="absolute left-3 top-3 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-order-link" value={link} onChange={(event) => { setLink(event.target.value); setErrors((current) => ({ ...current, link: undefined })); }} placeholder={selected ? `https://${selected.platform.toLowerCase()}.com/...` : 'Selecciona un servicio primero'} className={`w-full rounded-md border bg-[hsl(var(--background))] py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.link || liveLinkError ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} /></div>{(errors.link || liveLinkError) && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.link || liveLinkError}</span>}{selected && !liveLinkError && link.trim() && <span className="mt-1.5 block text-xs text-[hsl(var(--primary))]">Enlace compatible con {selected.platform}.</span>}</label>
           <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Cantidad</span>{selected && <span className="mono text-[10px] text-[hsl(var(--muted-foreground))]">min {selected.minQuantity.toLocaleString('es-ES')} / max {selected.maxQuantity.toLocaleString('es-ES')}</span>}</div><input data-testid="input-order-quantity" type="number" min={selected?.minQuantity ?? 1} max={selected?.maxQuantity} value={quantity} onChange={(event) => { setQuantity(event.target.value); setErrors((current) => ({ ...current, quantity: undefined })); }} placeholder="0" className={`w-full rounded-md border bg-[hsl(var(--background))] px-3 py-2.5 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.quantity ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} />{errors.quantity && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.quantity}</span>}</label>
         </div>
         {createOrder.isError && <p className="mt-5 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-sm text-[hsl(var(--destructive))]">No se pudo crear el pedido. Revisa los datos e inténtalo de nuevo.</p>}
