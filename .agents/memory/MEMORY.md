@@ -1,2 +1,3 @@
 - [Supabase connectivity](supabase-connectivity.md) — validate external database DNS reachability before schema push or auth bootstrap.
 - [Marketerum error responses](marketerum-error-responses.md) — provider errors can arrive as HTTP 200 JSON and must fail local actions.
+- [Provider order reservations](provider-order-reservations.md) — ambiguous paid-provider outcomes remain reserved; retries never resubmit.

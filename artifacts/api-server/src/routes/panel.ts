@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, ordersTable, servicesTable } from "@workspace/db";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { creditLedgerTable, creditPeriodsTable, db, orderStatusEventsTable, ordersTable, servicesTable } from "@workspace/db";
 import {
   CreateOrderBody,
   CreateOrderResponse,
@@ -10,17 +10,21 @@ import {
   GetServicesResponse,
   RefillOrderBody,
   RefillOrderResponse,
+  ReconcileOrderReservationBody,
   SyncOrderStatusBody,
   SyncOrderStatusResponse,
 } from "@workspace/api-zod";
 import { deriveOrderMetrics, toNonNegativeInteger } from "../lib/order-metrics";
+import { CreditNotStartedError, InsufficientCreditError, UnpricedServiceError, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, microsToUsd } from "../lib/credit";
+import { calculateServiceInsights } from "../lib/service-insights";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
-import { marketerum } from "../lib/marketerum";
+import { ProviderRejectedError, marketerum } from "../lib/marketerum";
 import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso"];
-const configuredServiceIds = new Set(["4665", "4668", "11161"]);
+const configuredServiceIds = new Set(["4665", "4668", "11161", "9397", "11228", "11241"]);
+class PendingReservationError extends Error {}
 
 const validateLinkForPlatform = (platform: string, value: string) => {
   let url: URL;
@@ -55,6 +59,14 @@ const ensureServices = async () => {
 };
 
 const decodeProviderText = (value: unknown) => String(value ?? "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+const cleanServiceName = (value: unknown, id: string) => {
+  const name = decodeProviderText(value)
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[•·|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return name || `Servicio ${id}`;
+};
 
 const providerPlatform = (service: Record<string, unknown>) => {
   const source = `${service.category ?? ""} ${service.name ?? ""}`.toLowerCase();
@@ -65,13 +77,14 @@ const providerPlatform = (service: Record<string, unknown>) => {
 const syncLiveServices = async () => {
   const remoteServices = await marketerum.services();
   if (!Array.isArray(remoteServices)) throw new Error("Invalid provider services response");
+  const existing = new Map((await db.select().from(servicesTable)).map((service) => [service.id, service]));
   const selected = remoteServices
     .filter((service) => configuredServiceIds.has(String(service.service ?? service.id ?? "")))
     .map((service) => {
       const id = String(service.service ?? service.id);
       return {
         id,
-        name: decodeProviderText(service.name) || `Servicio ${id}`,
+        name: cleanServiceName(service.name, id),
         platform: providerPlatform(service),
         contentType: decodeProviderText(service.type) || "Servicio",
         description: decodeProviderText(service.category) || "Servicio disponible en tiempo real.",
@@ -80,6 +93,7 @@ const syncLiveServices = async () => {
         supportsRefill: service.refill === true || service.refill === "true",
         estimatedTime: "En tiempo real",
         providerServiceId: id,
+        pricePerThousandMicros: decimalToMicros(service.rate) ?? existing.get(id)?.pricePerThousandMicros ?? null,
       };
     })
     .filter((service) => Number.isFinite(service.minQuantity) && Number.isFinite(service.maxQuantity));
@@ -133,8 +147,47 @@ const toOrder = (row: { order: typeof ordersTable.$inferSelect; service: typeof 
   createdAt: row.order.createdAt.toISOString(),
   lastSyncedAt: row.order.lastSyncedAt?.toISOString() ?? null,
   elapsed: elapsed(row.order.createdAt),
+  costUsd: microsToUsd(row.order.costMicros),
+  durationMinutes: row.order.completedAt ? Math.max(0, Math.round((row.order.completedAt.getTime() - row.order.createdAt.getTime()) / 60000)) : null,
   refillAvailable: row.order.refillAvailable,
+  needsReconciliation: !row.order.providerOrderId && row.order.status === "Pendiente",
 });
+
+const getCreditSummary = async (userId: string) => db.transaction(async (tx) => {
+  const window = getCreditWindow();
+  if (!window.isActive) {
+    return {
+      allowanceUsd: microsToUsd(0),
+      spentUsd: microsToUsd(0),
+      availableUsd: microsToUsd(0),
+      periodStartedAt: window.startsAt.toISOString(),
+      resetsAt: window.resetsAt.toISOString(),
+    };
+  }
+  const period = await getOrCreateCreditPeriod(tx, userId);
+  const { spentMicros, availableMicros } = await getCreditBalance(tx, period);
+  return {
+    allowanceUsd: microsToUsd(period.allowanceMicros),
+    spentUsd: microsToUsd(spentMicros),
+    availableUsd: microsToUsd(Math.max(0, availableMicros)),
+    periodStartedAt: period.startsAt.toISOString(),
+    resetsAt: period.resetsAt.toISOString(),
+  };
+});
+
+const getServiceCatalog = async (userId: string) => {
+  const services = await syncLiveServices();
+  const orders = await db.select().from(ordersTable).where(eq(ordersTable.userId, userId));
+  const insights = calculateServiceInsights(services, orders);
+  return services.map(({ providerServiceId: _providerServiceId, pricePerThousandMicros, ...service }) => {
+    const insight = insights.get(service.id)!;
+    return {
+      ...service,
+      pricePerThousandUsd: microsToUsd(pricePerThousandMicros),
+      ...insight,
+    };
+  });
+};
 
 const requireUser = async (req: any, res: any) => {
   const user = await getUserFromToken(req.cookies?.[SESSION_COOKIE]);
@@ -157,9 +210,10 @@ const getRows = async (userId: string, status?: string) => {
 };
 
 router.get("/panel/services", async (req, res): Promise<void> => {
-  if (!(await requireUser(req, res))) return;
+  const user = await requireUser(req, res);
+  if (!user) return;
   try {
-    res.json(GetServicesResponse.parse((await syncLiveServices()).map(({ providerServiceId: _providerServiceId, ...service }) => service)));
+    res.json(GetServicesResponse.parse(await getServiceCatalog(user.id)));
   } catch {
     res.status(503).json({ error: "El catálogo no está disponible en este momento." });
   }
@@ -198,26 +252,123 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: "La cantidad no está disponible para este servicio." });
     return;
   }
-  let providerOrderId: string | undefined;
+  const costMicros = service ? estimateCostMicros(service.pricePerThousandMicros, parsed.data.quantity) : undefined;
+  if (costMicros == null) {
+    res.status(503).json({ error: "El precio del servicio no esta disponible. Intenta mas tarde." });
+    return;
+  }
+  let reservationResult: { order: typeof ordersTable.$inferSelect; isNew: boolean };
+  try {
+    reservationResult = await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(ordersTable)
+        .where(and(eq(ordersTable.userId, user.id), eq(ordersTable.requestId, parsed.data.requestId)))
+        .limit(1);
+      if (existing) return { order: existing, isNew: false };
+      const period = await getOrCreateCreditPeriod(tx, user.id);
+      const [reservationAfterLock] = await tx.select().from(ordersTable)
+        .where(and(eq(ordersTable.userId, user.id), eq(ordersTable.requestId, parsed.data.requestId)))
+        .limit(1);
+      if (reservationAfterLock) return { order: reservationAfterLock, isNew: false };
+      const [unresolvedReservation] = await tx.select().from(ordersTable)
+        .where(and(eq(ordersTable.userId, user.id), eq(ordersTable.status, "Pendiente"), isNull(ordersTable.providerOrderId)))
+        .limit(1);
+      if (unresolvedReservation) throw new PendingReservationError();
+      const { availableMicros } = await getCreditBalance(tx, period);
+      if (availableMicros < costMicros) throw new InsufficientCreditError();
+      const orderId = randomUUID();
+      const [createdOrder] = await tx.insert(ordersTable).values({
+        id: orderId,
+        userId: user.id,
+        serviceId: service!.id,
+        link: parsed.data.link,
+        quantity: parsed.data.quantity,
+        requestId: parsed.data.requestId,
+        creditPeriodId: period.id,
+        costMicros,
+        status: "Pendiente",
+        progress: 0,
+      }).returning();
+      await tx.insert(creditLedgerTable).values({
+        id: randomUUID(),
+        userId: user.id,
+        periodId: period.id,
+        orderId,
+        kind: "reserva-pedido",
+        amountMicros: costMicros,
+      });
+      await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId, userId: user.id, status: "Pendiente" });
+      return { order: createdOrder, isNew: true };
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditError) {
+      res.status(402).json({ error: "Credito insuficiente para este pedido. Espera al proximo reinicio mensual." });
+      return;
+    }
+    if (error instanceof CreditNotStartedError) {
+      res.status(503).json({ error: "El credito mensual aun no esta activo." });
+      return;
+    }
+    if (error instanceof PendingReservationError) {
+      res.status(409).json({ error: "Ya existe un pedido pendiente de verificacion. Intenta mas tarde." });
+      return;
+    }
+    if (error instanceof UnpricedServiceError) {
+      res.status(503).json({ error: "El precio del servicio no esta disponible." });
+      return;
+    }
+    res.status(502).json({ error: "No fue posible reservar el pedido en este momento." });
+    return;
+  }
+  const reservation = reservationResult.order;
+  if (reservation.providerOrderId) {
+    res.json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
+    return;
+  }
+  if (reservation.status === "Cancelado") {
+    res.status(409).json({ error: "La solicitud anterior fue rechazada. Intenta crear un pedido nuevo." });
+    return;
+  }
+  if (!reservationResult.isNew) {
+    res.status(202).json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
+    return;
+  }
+  const cancelReservation = async () => db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, reservation.id)).for("update");
+    if (!locked || locked.providerOrderId || locked.status === "Cancelado") return;
+    await tx.update(ordersTable).set({ status: "Cancelado", lastSyncedAt: new Date() }).where(eq(ordersTable.id, locked.id));
+    if (locked.creditPeriodId && locked.costMicros) {
+      await tx.select().from(creditPeriodsTable).where(eq(creditPeriodsTable.id, locked.creditPeriodId)).for("update");
+      await tx.insert(creditLedgerTable).values({ id: randomUUID(), userId: user.id, periodId: locked.creditPeriodId, orderId: locked.id, kind: "reversion-reserva", amountMicros: -locked.costMicros });
+    }
+    await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status: "Cancelado" });
+  });
+  let providerOrderId: string;
   try {
     const provider = await marketerum.add({ service: service.providerServiceId ?? service.id, link: parsed.data.link, quantity: parsed.data.quantity });
     providerOrderId = String(provider.order ?? provider.id ?? "");
     if (!providerOrderId) throw new Error("Provider did not return an order ID");
-  } catch {
-    res.status(502).json({ error: "No fue posible procesar el pedido en este momento." });
+  } catch (error) {
+    if (error instanceof ProviderRejectedError) {
+      await cancelReservation();
+      res.status(502).json({ error: "No fue posible procesar el pedido en este momento." });
+      return;
+    }
+    res.status(202).json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
     return;
   }
-  const [created] = await db.insert(ordersTable).values({
-    id: randomUUID(),
-    userId: user.id,
-    serviceId: service.id,
-    link: parsed.data.link,
-    quantity: parsed.data.quantity,
-    providerOrderId,
-    status: "En proceso",
-    progress: 0,
-  }).returning();
-  res.status(201).json(CreateOrderResponse.parse(toOrder({ order: created, service })));
+  try {
+    const [created] = await db.transaction(async (tx) => {
+      const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, reservation.id)).for("update");
+      if (!locked) throw new Error("Reservation not found");
+      if (locked.providerOrderId) return [locked];
+      const [nextOrder] = await tx.update(ordersTable).set({ providerOrderId, status: "En proceso", lastSyncedAt: new Date() }).where(eq(ordersTable.id, locked.id)).returning();
+      await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status: "En proceso" });
+      return [nextOrder];
+    });
+    res.status(201).json(CreateOrderResponse.parse(toOrder({ order: created, service })));
+  } catch {
+    res.status(202).json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
+  }
 });
 
 const action = async (req: any, res: any, type: "status" | "refill"): Promise<void> => {
@@ -238,17 +389,53 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
     res.status(400).json({ error: "Este pedido no admite refill." });
     return;
   }
+  if (!row.order.providerOrderId) {
+    res.status(409).json({ error: "El pedido esta reservado y pendiente de verificacion. Intenta mas tarde." });
+    return;
+  }
   try {
     const provider = type === "status"
-      ? await marketerum.status({ order: row.order.providerOrderId ?? row.order.id })
-      : await marketerum.refill({ order: row.order.providerOrderId ?? row.order.id });
+      ? await marketerum.status({ order: row.order.providerOrderId })
+      : await marketerum.refill({ order: row.order.providerOrderId });
     const providerRemains = type === "status" ? toNonNegativeInteger(provider.remains) : undefined;
     const providerStartCount = type === "status" ? toNonNegativeInteger(provider.start_count) : undefined;
     const remains = providerRemains ?? row.order.remains;
     const startCount = providerStartCount ?? row.order.startCount;
     const status = type === "status" ? normalizeStatus(provider.status, row.order.status) : row.order.status;
     const { progress } = deriveOrderMetrics({ quantity: row.order.quantity, status, progress: row.order.progress, remains });
-    const [updated] = await db.update(ordersTable).set({ status, progress, startCount, remains, lastSyncedAt: new Date(), refillAvailable: type === "refill" ? false : row.order.refillAvailable }).where(eq(ordersTable.id, row.order.id)).returning();
+    const now = new Date();
+    const confirmedCostMicros = type === "status" ? decimalToMicros(provider.charge) : undefined;
+    const costMicros = confirmedCostMicros ?? row.order.costMicros;
+    const [updated] = await db.transaction(async (tx) => {
+      const [lockedOrder] = await tx.select().from(ordersTable).where(eq(ordersTable.id, row.order.id)).for("update");
+      if (!lockedOrder) throw new Error("Order not found");
+      if (confirmedCostMicros != null && lockedOrder.creditPeriodId && confirmedCostMicros !== lockedOrder.costMicros) {
+        await tx.select().from(creditPeriodsTable).where(eq(creditPeriodsTable.id, lockedOrder.creditPeriodId)).for("update");
+        await tx.insert(creditLedgerTable).values({
+          id: randomUUID(),
+          userId: user.id,
+          periodId: lockedOrder.creditPeriodId,
+          orderId: lockedOrder.id,
+          kind: "ajuste-coste-confirmado",
+          amountMicros: confirmedCostMicros - (lockedOrder.costMicros ?? 0),
+        });
+      }
+      const [nextOrder] = await tx.update(ordersTable).set({
+        status,
+        progress,
+        startCount,
+        remains,
+        costMicros,
+        firstSyncedAt: row.order.firstSyncedAt ?? now,
+        completedAt: status === "Completado" ? row.order.completedAt ?? now : row.order.completedAt,
+        lastSyncedAt: now,
+        refillAvailable: type === "refill" ? false : row.order.refillAvailable,
+      }).where(eq(ordersTable.id, lockedOrder.id)).returning();
+      if (type === "status" && status !== row.order.status) {
+        await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: row.order.id, userId: user.id, status, recordedAt: now });
+      }
+      return [nextOrder];
+    });
     const schemaResponse = type === "status" ? SyncOrderStatusResponse : RefillOrderResponse;
     res.json(schemaResponse.parse(toOrder({ order: updated, service: row.service })));
   } catch {
@@ -258,6 +445,45 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
 
 router.post("/panel/orders/status", (req, res) => void action(req, res, "status"));
 router.post("/panel/orders/refill", (req, res) => void action(req, res, "refill"));
+
+router.post("/panel/orders/reconcile", async (req, res): Promise<void> => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const parsed = ReconcileOrderReservationBody.safeParse(req.body);
+  if (!parsed.success || (parsed.data.resolution === "attach" && !parsed.data.providerOrderId)) {
+    res.status(400).json({ error: "Revisa los datos de reconciliacion." });
+    return;
+  }
+  const [existing] = await db.select({ order: ordersTable, service: servicesTable }).from(ordersTable)
+    .innerJoin(servicesTable, eq(ordersTable.serviceId, servicesTable.id))
+    .where(and(eq(ordersTable.id, parsed.data.orderId), eq(ordersTable.userId, user.id))).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Pedido no encontrado." });
+    return;
+  }
+  if (existing.order.providerOrderId || existing.order.status !== "Pendiente") {
+    res.status(400).json({ error: "Este pedido no requiere reconciliacion." });
+    return;
+  }
+  const now = new Date();
+  const [updated] = await db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, existing.order.id)).for("update");
+    if (!locked || locked.providerOrderId || locked.status !== "Pendiente") throw new Error("Reservation already resolved");
+    if (parsed.data.resolution === "release" && locked.creditPeriodId && locked.costMicros) {
+      await tx.select().from(creditPeriodsTable).where(eq(creditPeriodsTable.id, locked.creditPeriodId)).for("update");
+      await tx.insert(creditLedgerTable).values({ id: randomUUID(), userId: user.id, periodId: locked.creditPeriodId, orderId: locked.id, kind: "reversion-verificada", amountMicros: -locked.costMicros });
+    }
+    const status = parsed.data.resolution === "attach" ? "En proceso" : "Cancelado";
+    const [nextOrder] = await tx.update(ordersTable).set({
+      status,
+      providerOrderId: parsed.data.resolution === "attach" ? parsed.data.providerOrderId : null,
+      lastSyncedAt: now,
+    }).where(eq(ordersTable.id, locked.id)).returning();
+    await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status, recordedAt: now });
+    return [nextOrder];
+  });
+  res.json(CreateOrderResponse.parse(toOrder({ order: updated, service: existing.service })));
+});
 
 router.get("/panel/dashboard", async (req, res): Promise<void> => {
   const user = await requireUser(req, res);
@@ -271,7 +497,8 @@ router.get("/panel/dashboard", async (req, res): Promise<void> => {
   const metricsPendingOrders = orders.filter((order) => order.delivered == null || order.remains == null).length;
   const deliveredQuantity = metricsPendingOrders ? null : orders.reduce((total, order) => total + (order.delivered ?? 0), 0);
   const remainingQuantity = metricsPendingOrders ? null : orders.reduce((total, order) => total + (order.remains ?? 0), 0);
-  res.json(GetDashboardResponse.parse({ activeOrders: active.length, completedOrders: completed.length, totalOrders: orders.length, needsAttention: needsAttention.length, deliveredQuantity, remainingQuantity, metricsPendingOrders, recentOrders: orders.slice(0, 5), lastSyncAt: lastSync?.toISOString() ?? null }));
+  const credit = await getCreditSummary(user.id);
+  res.json(GetDashboardResponse.parse({ activeOrders: active.length, completedOrders: completed.length, totalOrders: orders.length, needsAttention: needsAttention.length, deliveredQuantity, remainingQuantity, metricsPendingOrders, recentOrders: orders.slice(0, 5), lastSyncAt: lastSync?.toISOString() ?? null, credit }));
 });
 
 export default router;

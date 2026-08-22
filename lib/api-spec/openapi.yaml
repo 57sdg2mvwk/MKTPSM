@@ -42,6 +42,11 @@ paths:
                 $ref: "#/components/schemas/CurrentUser"
         "401":
           description: Not authenticated
+        "503":
+          description: Catalog temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /auth/login:
     post:
       operationId: login
@@ -100,6 +105,11 @@ paths:
                   $ref: "#/components/schemas/Service"
         "401":
           description: Not authenticated
+        "503":
+          description: Catalog temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /panel/orders:
     get:
       operationId: getOrders
@@ -139,10 +149,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Order"
+        "200":
+          description: Existing idempotent order replayed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "202":
+          description: Order reservation is pending provider verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
         "400":
           description: Invalid order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "402":
+          description: Monthly credit is insufficient
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Existing request is pending or rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Provider could not accept the order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Service pricing or monthly credit is unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /panel/orders/status:
     post:
       operationId: syncOrderStatus
@@ -163,6 +211,29 @@ paths:
                 $ref: "#/components/schemas/Order"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Order reservation is pending provider verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Provider sync unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /panel/orders/refill:
     post:
       operationId: refillOrder
@@ -183,8 +254,61 @@ paths:
                 $ref: "#/components/schemas/Order"
         "400":
           description: Refill unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Order reservation is pending provider verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Provider refill unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /panel/orders/reconcile:
+    post:
+      operationId: reconcileOrderReservation
+      tags: [panel]
+      summary: Resolve a provider order reservation pending verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderReconciliationInput"
+      responses:
+        "200":
+          description: Reservation reconciled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "400":
+          description: Invalid reconciliation request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 components:
   schemas:
     HealthStatus:
@@ -220,7 +344,17 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Order" }
         lastSyncAt: { type: ["string", "null"] }
-      required: [activeOrders, completedOrders, totalOrders, needsAttention, deliveredQuantity, remainingQuantity, metricsPendingOrders, recentOrders, lastSyncAt]
+        credit: { $ref: "#/components/schemas/CreditSummary" }
+      required: [activeOrders, completedOrders, totalOrders, needsAttention, deliveredQuantity, remainingQuantity, metricsPendingOrders, recentOrders, lastSyncAt, credit]
+    CreditSummary:
+      type: object
+      properties:
+        allowanceUsd: { type: number }
+        spentUsd: { type: number }
+        availableUsd: { type: number }
+        periodStartedAt: { type: string }
+        resetsAt: { type: string }
+      required: [allowanceUsd, spentUsd, availableUsd, periodStartedAt, resetsAt]
     Service:
       type: object
       properties:
@@ -233,7 +367,17 @@ components:
         maxQuantity: { type: number }
         supportsRefill: { type: boolean }
         estimatedTime: { type: string }
-      required: [id, name, platform, contentType, description, minQuantity, maxQuantity, supportsRefill, estimatedTime]
+        pricePerThousandUsd: { type: ["number", "null"] }
+        orderCount: { type: number }
+        requestedUnits: { type: number }
+        completionRate: { type: ["number", "null"] }
+        medianDurationMinutes: { type: ["number", "null"] }
+        medianFirstUpdateMinutes: { type: ["number", "null"] }
+        isDataSufficient: { type: boolean }
+        tags:
+          type: array
+          items: { type: string }
+      required: [id, name, platform, contentType, description, minQuantity, maxQuantity, supportsRefill, estimatedTime, pricePerThousandUsd, orderCount, requestedUnits, completionRate, medianDurationMinutes, medianFirstUpdateMinutes, isDataSufficient, tags]
     Order:
       type: object
       properties:
@@ -253,17 +397,33 @@ components:
         lastSyncedAt: { type: ["string", "null"] }
         elapsed: { type: string }
         refillAvailable: { type: boolean }
-      required: [id, serviceId, serviceName, platform, contentType, link, quantity, status, progress, startCount, remains, delivered, createdAt, lastSyncedAt, elapsed, refillAvailable]
+        costUsd: { type: ["number", "null"] }
+        durationMinutes: { type: ["number", "null"] }
+        needsReconciliation: { type: boolean }
+      required: [id, serviceId, serviceName, platform, contentType, link, quantity, status, progress, startCount, remains, delivered, createdAt, lastSyncedAt, elapsed, refillAvailable, costUsd, durationMinutes, needsReconciliation]
     OrderInput:
       type: object
       properties:
         serviceId: { type: string, minLength: 1 }
         link: { type: string }
         quantity: { type: number, minimum: 1 }
-      required: [serviceId, link, quantity]
+        requestId: { type: string, minLength: 8 }
+      required: [serviceId, link, quantity, requestId]
     OrderActionInput:
       type: object
       properties:
         orderId: { type: string, minLength: 1 }
       required: [orderId]
+    OrderReconciliationInput:
+      type: object
+      properties:
+        orderId: { type: string, minLength: 1 }
+        resolution: { type: string, enum: [attach, release] }
+        providerOrderId: { type: string, minLength: 1 }
+      required: [orderId, resolution]
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
 

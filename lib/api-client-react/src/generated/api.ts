@@ -22,12 +22,14 @@ import type {
 import type {
   CurrentUser,
   Dashboard,
+  ErrorResponse,
   GetOrdersParams,
   HealthStatus,
   LoginInput,
   Order,
   OrderActionInput,
   OrderInput,
+  OrderReconciliationInput,
   Service
 } from './api.schemas';
 
@@ -169,7 +171,7 @@ export const getGetCurrentUserQueryKey = () => {
     }
 
 
-export const getGetCurrentUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetCurrentUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void | ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -188,14 +190,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetCurrentUserQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
-export type GetCurrentUserQueryError = ErrorType<void>
+export type GetCurrentUserQueryError = ErrorType<void | ErrorResponse>
 
 
 /**
  * @summary Get current authenticated user
  */
 
-export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void>>(
+export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void | ErrorResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -465,7 +467,7 @@ export const getGetServicesQueryKey = () => {
     }
 
 
-export const getGetServicesQueryOptions = <TData = Awaited<ReturnType<typeof getServices>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetServicesQueryOptions = <TData = Awaited<ReturnType<typeof getServices>>, TError = ErrorType<void | ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -484,14 +486,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetServicesQueryResult = NonNullable<Awaited<ReturnType<typeof getServices>>>
-export type GetServicesQueryError = ErrorType<void>
+export type GetServicesQueryError = ErrorType<void | ErrorResponse>
 
 
 /**
  * @summary Get public-facing service catalog
  */
 
-export function useGetServices<TData = Awaited<ReturnType<typeof getServices>>, TError = ErrorType<void>>(
+export function useGetServices<TData = Awaited<ReturnType<typeof getServices>>, TError = ErrorType<void | ErrorResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -619,7 +621,7 @@ export const createOrder = async (orderInput: OrderInput, options?: Parameters<t
 
 
 
-export const getCreateOrderMutationOptions = <TError = ErrorType<void>,
+export const getCreateOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrder>>, TError,{data: BodyType<OrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createOrder>>, TError,{data: BodyType<OrderInput>}, TContext> => {
 
@@ -648,12 +650,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateOrderMutationResult = NonNullable<Awaited<ReturnType<typeof createOrder>>>
     export type CreateOrderMutationBody = BodyType<OrderInput>
-    export type CreateOrderMutationError = ErrorType<void>
+    export type CreateOrderMutationError = ErrorType<ErrorResponse>
 
     /**
  * @summary Create a new marketing order
  */
-export const useCreateOrder = <TError = ErrorType<void>,
+export const useCreateOrder = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrder>>, TError,{data: BodyType<OrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createOrder>>,
@@ -690,7 +692,7 @@ export const syncOrderStatus = async (orderActionInput: OrderActionInput, option
 
 
 
-export const getSyncOrderStatusMutationOptions = <TError = ErrorType<void>,
+export const getSyncOrderStatusMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOrderStatus>>, TError,{data: BodyType<OrderActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof syncOrderStatus>>, TError,{data: BodyType<OrderActionInput>}, TContext> => {
 
@@ -719,12 +721,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SyncOrderStatusMutationResult = NonNullable<Awaited<ReturnType<typeof syncOrderStatus>>>
     export type SyncOrderStatusMutationBody = BodyType<OrderActionInput>
-    export type SyncOrderStatusMutationError = ErrorType<void>
+    export type SyncOrderStatusMutationError = ErrorType<ErrorResponse>
 
     /**
  * @summary Sync order status from service provider
  */
-export const useSyncOrderStatus = <TError = ErrorType<void>,
+export const useSyncOrderStatus = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOrderStatus>>, TError,{data: BodyType<OrderActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof syncOrderStatus>>,
@@ -761,7 +763,7 @@ export const refillOrder = async (orderActionInput: OrderActionInput, options?: 
 
 
 
-export const getRefillOrderMutationOptions = <TError = ErrorType<void>,
+export const getRefillOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refillOrder>>, TError,{data: BodyType<OrderActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof refillOrder>>, TError,{data: BodyType<OrderActionInput>}, TContext> => {
 
@@ -790,12 +792,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RefillOrderMutationResult = NonNullable<Awaited<ReturnType<typeof refillOrder>>>
     export type RefillOrderMutationBody = BodyType<OrderActionInput>
-    export type RefillOrderMutationError = ErrorType<void>
+    export type RefillOrderMutationError = ErrorType<ErrorResponse>
 
     /**
  * @summary Request a refill for an eligible order
  */
-export const useRefillOrder = <TError = ErrorType<void>,
+export const useRefillOrder = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refillOrder>>, TError,{data: BodyType<OrderActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof refillOrder>>,
@@ -804,5 +806,76 @@ export const useRefillOrder = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRefillOrderMutationOptions(options));
+    }
+
+export const getReconcileOrderReservationUrl = () => {
+
+
+
+
+  return `/api/panel/orders/reconcile`
+}
+
+/**
+ * @summary Resolve a provider order reservation pending verification
+ */
+export const reconcileOrderReservation = async (orderReconciliationInput: OrderReconciliationInput, options?: Parameters<typeof customFetch>[1]): Promise<Order> => {
+
+  return customFetch<Order>(getReconcileOrderReservationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(orderReconciliationInput)
+  }
+);}
+
+
+
+
+
+export const getReconcileOrderReservationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileOrderReservation>>, TError,{data: BodyType<OrderReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileOrderReservation>>, TError,{data: BodyType<OrderReconciliationInput>}, TContext> => {
+
+const mutationKey = ['reconcileOrderReservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileOrderReservation>>, {data: BodyType<OrderReconciliationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reconcileOrderReservation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileOrderReservationMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileOrderReservation>>>
+    export type ReconcileOrderReservationMutationBody = BodyType<OrderReconciliationInput>
+    export type ReconcileOrderReservationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Resolve a provider order reservation pending verification
+ */
+export const useReconcileOrderReservation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileOrderReservation>>, TError,{data: BodyType<OrderReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileOrderReservation>>,
+        TError,
+        {data: BodyType<OrderReconciliationInput>},
+        TContext
+      > => {
+      return useMutation(getReconcileOrderReservationMutationOptions(options));
     }
 

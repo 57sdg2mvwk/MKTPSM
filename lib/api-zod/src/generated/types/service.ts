@@ -16,4 +16,16 @@ export interface Service {
   maxQuantity: number;
   supportsRefill: boolean;
   estimatedTime: string;
+  /** @nullable */
+  pricePerThousandUsd: number | null;
+  orderCount: number;
+  requestedUnits: number;
+  /** @nullable */
+  completionRate: number | null;
+  /** @nullable */
+  medianDurationMinutes: number | null;
+  /** @nullable */
+  medianFirstUpdateMinutes: number | null;
+  isDataSufficient: boolean;
+  tags: string[];
 }

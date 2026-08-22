@@ -12,4 +12,6 @@ export interface OrderInput {
   link: string;
   /** @minimum 1 */
   quantity: number;
+  /** @minLength 8 */
+  requestId: string;
 }

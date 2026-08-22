@@ -27,4 +27,9 @@ export interface Order {
   lastSyncedAt: string | null;
   elapsed: string;
   refillAvailable: boolean;
+  /** @nullable */
+  costUsd: number | null;
+  /** @nullable */
+  durationMinutes: number | null;
+  needsReconciliation: boolean;
 }

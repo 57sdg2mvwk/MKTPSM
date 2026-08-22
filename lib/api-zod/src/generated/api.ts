@@ -76,9 +76,19 @@ export const GetDashboardResponse = zod.object({
   "createdAt": zod.string(),
   "lastSyncedAt": zod.string().nullable(),
   "elapsed": zod.string(),
-  "refillAvailable": zod.boolean()
+  "refillAvailable": zod.boolean(),
+  "costUsd": zod.number().nullable(),
+  "durationMinutes": zod.number().nullable(),
+  "needsReconciliation": zod.boolean()
 })),
-  "lastSyncAt": zod.string().nullable()
+  "lastSyncAt": zod.string().nullable(),
+  "credit": zod.object({
+  "allowanceUsd": zod.number(),
+  "spentUsd": zod.number(),
+  "availableUsd": zod.number(),
+  "periodStartedAt": zod.string(),
+  "resetsAt": zod.string()
+})
 })
 
 
@@ -94,7 +104,15 @@ export const GetServicesResponseItem = zod.object({
   "minQuantity": zod.number(),
   "maxQuantity": zod.number(),
   "supportsRefill": zod.boolean(),
-  "estimatedTime": zod.string()
+  "estimatedTime": zod.string(),
+  "pricePerThousandUsd": zod.number().nullable(),
+  "orderCount": zod.number(),
+  "requestedUnits": zod.number(),
+  "completionRate": zod.number().nullable(),
+  "medianDurationMinutes": zod.number().nullable(),
+  "medianFirstUpdateMinutes": zod.number().nullable(),
+  "isDataSufficient": zod.boolean(),
+  "tags": zod.array(zod.string())
 })
 export const GetServicesResponse = zod.array(GetServicesResponseItem)
 
@@ -122,7 +140,10 @@ export const GetOrdersResponseItem = zod.object({
   "createdAt": zod.string(),
   "lastSyncedAt": zod.string().nullable(),
   "elapsed": zod.string(),
-  "refillAvailable": zod.boolean()
+  "refillAvailable": zod.boolean(),
+  "costUsd": zod.number().nullable(),
+  "durationMinutes": zod.number().nullable(),
+  "needsReconciliation": zod.boolean()
 })
 export const GetOrdersResponse = zod.array(GetOrdersResponseItem)
 
@@ -132,12 +153,15 @@ export const GetOrdersResponse = zod.array(GetOrdersResponseItem)
  */
 
 
+export const createOrderBodyRequestIdMin = 8;
+
 
 
 export const CreateOrderBody = zod.object({
   "serviceId": zod.string().min(1),
   "link": zod.string(),
-  "quantity": zod.number().min(1)
+  "quantity": zod.number().min(1),
+  "requestId": zod.string().min(createOrderBodyRequestIdMin)
 })
 
 export const CreateOrderResponse = zod.object({
@@ -156,7 +180,10 @@ export const CreateOrderResponse = zod.object({
   "createdAt": zod.string(),
   "lastSyncedAt": zod.string().nullable(),
   "elapsed": zod.string(),
-  "refillAvailable": zod.boolean()
+  "refillAvailable": zod.boolean(),
+  "costUsd": zod.number().nullable(),
+  "durationMinutes": zod.number().nullable(),
+  "needsReconciliation": zod.boolean()
 })
 
 
@@ -186,7 +213,10 @@ export const SyncOrderStatusResponse = zod.object({
   "createdAt": zod.string(),
   "lastSyncedAt": zod.string().nullable(),
   "elapsed": zod.string(),
-  "refillAvailable": zod.boolean()
+  "refillAvailable": zod.boolean(),
+  "costUsd": zod.number().nullable(),
+  "durationMinutes": zod.number().nullable(),
+  "needsReconciliation": zod.boolean()
 })
 
 
@@ -216,7 +246,46 @@ export const RefillOrderResponse = zod.object({
   "createdAt": zod.string(),
   "lastSyncedAt": zod.string().nullable(),
   "elapsed": zod.string(),
-  "refillAvailable": zod.boolean()
+  "refillAvailable": zod.boolean(),
+  "costUsd": zod.number().nullable(),
+  "durationMinutes": zod.number().nullable(),
+  "needsReconciliation": zod.boolean()
+})
+
+
+/**
+ * @summary Resolve a provider order reservation pending verification
+ */
+
+
+
+
+export const ReconcileOrderReservationBody = zod.object({
+  "orderId": zod.string().min(1),
+  "resolution": zod.enum(['attach', 'release']),
+  "providerOrderId": zod.string().min(1).optional()
+})
+
+export const ReconcileOrderReservationResponse = zod.object({
+  "id": zod.string(),
+  "serviceId": zod.string(),
+  "serviceName": zod.string(),
+  "platform": zod.string(),
+  "contentType": zod.string(),
+  "link": zod.string(),
+  "quantity": zod.number(),
+  "status": zod.string(),
+  "progress": zod.number(),
+  "startCount": zod.number().nullable(),
+  "remains": zod.number().nullable(),
+  "delivered": zod.number().nullable(),
+  "createdAt": zod.string(),
+  "lastSyncedAt": zod.string().nullable(),
+  "elapsed": zod.string(),
+  "refillAvailable": zod.boolean(),
+  "costUsd": zod.number().nullable(),
+  "durationMinutes": zod.number().nullable(),
+  "needsReconciliation": zod.boolean()
 })
 
 

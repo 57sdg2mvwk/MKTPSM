@@ -41,6 +41,19 @@ export interface Order {
   lastSyncedAt: string | null;
   elapsed: string;
   refillAvailable: boolean;
+  /** @nullable */
+  costUsd: number | null;
+  /** @nullable */
+  durationMinutes: number | null;
+  needsReconciliation: boolean;
+}
+
+export interface CreditSummary {
+  allowanceUsd: number;
+  spentUsd: number;
+  availableUsd: number;
+  periodStartedAt: string;
+  resetsAt: string;
 }
 
 export interface Dashboard {
@@ -56,6 +69,7 @@ export interface Dashboard {
   recentOrders: Order[];
   /** @nullable */
   lastSyncAt: string | null;
+  credit: CreditSummary;
 }
 
 export interface Service {
@@ -68,6 +82,18 @@ export interface Service {
   maxQuantity: number;
   supportsRefill: boolean;
   estimatedTime: string;
+  /** @nullable */
+  pricePerThousandUsd: number | null;
+  orderCount: number;
+  requestedUnits: number;
+  /** @nullable */
+  completionRate: number | null;
+  /** @nullable */
+  medianDurationMinutes: number | null;
+  /** @nullable */
+  medianFirstUpdateMinutes: number | null;
+  isDataSufficient: boolean;
+  tags: string[];
 }
 
 export interface OrderInput {
@@ -76,11 +102,33 @@ export interface OrderInput {
   link: string;
   /** @minimum 1 */
   quantity: number;
+  /** @minLength 8 */
+  requestId: string;
 }
 
 export interface OrderActionInput {
   /** @minLength 1 */
   orderId: string;
+}
+
+export type OrderReconciliationInputResolution = typeof OrderReconciliationInputResolution[keyof typeof OrderReconciliationInputResolution];
+
+
+export const OrderReconciliationInputResolution = {
+  attach: 'attach',
+  release: 'release',
+} as const;
+
+export interface OrderReconciliationInput {
+  /** @minLength 1 */
+  orderId: string;
+  resolution: OrderReconciliationInputResolution;
+  /** @minLength 1 */
+  providerOrderId?: string;
+}
+
+export interface ErrorResponse {
+  error: string;
 }
 
 export type GetOrdersParams = {

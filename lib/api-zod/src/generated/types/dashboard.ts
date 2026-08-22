@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreditSummary } from './creditSummary';
 import type { Order } from './order';
 
 export interface Dashboard {
@@ -20,4 +21,5 @@ export interface Dashboard {
   recentOrders: Order[];
   /** @nullable */
   lastSyncAt: string | null;
+  credit: CreditSummary;
 }
