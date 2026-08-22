@@ -1,0 +1,1 @@
+- [Supabase connectivity](supabase-connectivity.md) — validate external database DNS reachability before schema push or auth bootstrap.
