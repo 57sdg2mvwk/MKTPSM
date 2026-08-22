@@ -13,6 +13,7 @@ import {
   SyncOrderStatusBody,
   SyncOrderStatusResponse,
 } from "@workspace/api-zod";
+import { deriveOrderMetrics, toNonNegativeInteger } from "../lib/order-metrics";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
 import { marketerum } from "../lib/marketerum";
 import { randomUUID } from "node:crypto";
@@ -100,12 +101,6 @@ const elapsed = (createdAt: Date) => {
   return `${Math.floor(hours / 24)} d`;
 };
 
-const toNonNegativeInteger = (value: unknown) => {
-  if (value == null || value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : undefined;
-};
-
 const normalizeStatus = (value: unknown, fallback: string) => {
   const status = String(value ?? "").toLowerCase();
   if (status.includes("complete") || status.includes("deliver") || status.includes("finish")) return "Completado";
@@ -118,16 +113,13 @@ const normalizeStatus = (value: unknown, fallback: string) => {
 
 const toOrder = (row: { order: typeof ordersTable.$inferSelect; service: typeof servicesTable.$inferSelect }) => ({
   ...(() => {
-    const remains = row.order.remains;
-    const delivered = remains == null
-      ? null
-      : Math.max(0, Math.min(row.order.quantity, row.order.quantity - remains));
-    const progress = row.order.status === "Completado"
-      ? 100
-      : delivered == null
-        ? row.order.progress
-        : Math.round((delivered / row.order.quantity) * 100);
-    return { remains, delivered, progress };
+    const metrics = deriveOrderMetrics({
+      quantity: row.order.quantity,
+      status: row.order.status,
+      progress: row.order.progress,
+      remains: row.order.remains,
+    });
+    return { remains: row.order.remains, ...metrics };
   })(),
   id: row.order.id,
   serviceId: row.order.serviceId,
@@ -255,8 +247,7 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
     const remains = providerRemains ?? row.order.remains;
     const startCount = providerStartCount ?? row.order.startCount;
     const status = type === "status" ? normalizeStatus(provider.status, row.order.status) : row.order.status;
-    const delivered = remains == null ? null : Math.max(0, Math.min(row.order.quantity, row.order.quantity - remains));
-    const progress = status === "Completado" ? 100 : delivered == null ? row.order.progress : Math.round((delivered / row.order.quantity) * 100);
+    const { progress } = deriveOrderMetrics({ quantity: row.order.quantity, status, progress: row.order.progress, remains });
     const [updated] = await db.update(ordersTable).set({ status, progress, startCount, remains, lastSyncedAt: new Date(), refillAvailable: type === "refill" ? false : row.order.refillAvailable }).where(eq(ordersTable.id, row.order.id)).returning();
     const schemaResponse = type === "status" ? SyncOrderStatusResponse : RefillOrderResponse;
     res.json(schemaResponse.parse(toOrder({ order: updated, service: row.service })));
