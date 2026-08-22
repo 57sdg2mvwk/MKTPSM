@@ -177,6 +177,7 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
   try {
     const provider = await marketerum.add({ service: service.providerServiceId ?? service.id, link: parsed.data.link, quantity: parsed.data.quantity });
     providerOrderId = String(provider.order ?? provider.id ?? "");
+    if (!providerOrderId) throw new Error("Provider did not return an order ID");
   } catch {
     res.status(502).json({ error: "No fue posible procesar el pedido en este momento." });
     return;
