@@ -19,6 +19,7 @@ import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso"];
+const configuredServiceIds = new Set(["4665"]);
 let providerServicesSyncedAt = 0;
 
 const ensureServices = async () => {
@@ -29,6 +30,45 @@ const ensureServices = async () => {
   ];
   await db.insert(servicesTable).values(seed);
   return db.select().from(servicesTable);
+};
+
+const decodeProviderText = (value: unknown) => String(value ?? "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+
+const providerPlatform = (service: Record<string, unknown>) => {
+  const source = `${service.category ?? ""} ${service.name ?? ""}`.toLowerCase();
+  const platforms = ["Instagram", "Facebook", "TikTok", "YouTube", "Twitter", "Telegram", "Spotify", "Twitch", "Discord"];
+  return platforms.find((platform) => source.includes(platform.toLowerCase())) ?? "Red social";
+};
+
+const syncLiveServices = async () => {
+  const remoteServices = await marketerum.services();
+  if (!Array.isArray(remoteServices)) throw new Error("Invalid provider services response");
+  const selected = remoteServices
+    .filter((service) => configuredServiceIds.has(String(service.service ?? service.id ?? "")))
+    .map((service) => {
+      const id = String(service.service ?? service.id);
+      return {
+        id,
+        name: decodeProviderText(service.name) || `Servicio ${id}`,
+        platform: providerPlatform(service),
+        contentType: decodeProviderText(service.type) || "Servicio",
+        description: decodeProviderText(service.category) || "Servicio disponible en tiempo real.",
+        minQuantity: Number(service.min),
+        maxQuantity: Number(service.max),
+        supportsRefill: service.refill === true || service.refill === "true",
+        estimatedTime: "En tiempo real",
+        providerServiceId: id,
+      };
+    })
+    .filter((service) => Number.isFinite(service.minQuantity) && Number.isFinite(service.maxQuantity));
+  if (!selected.length) throw new Error("Configured provider service not found");
+  for (const service of selected) {
+    await db.insert(servicesTable).values(service).onConflictDoUpdate({
+      target: servicesTable.id,
+      set: service,
+    });
+  }
+  return db.select().from(servicesTable).where(inArray(servicesTable.id, [...configuredServiceIds]));
 };
 
 const elapsed = (createdAt: Date) => {
@@ -77,12 +117,17 @@ const getRows = async (userId: string, status?: string) => {
 
 router.get("/panel/services", async (req, res): Promise<void> => {
   if (!(await requireUser(req, res))) return;
-  if (Date.now() - providerServicesSyncedAt > 5 * 60 * 1000) {
-    providerServicesSyncedAt = Date.now();
-    void marketerum.services().catch(() => undefined);
+  try {
+    if (Date.now() - providerServicesSyncedAt > 5 * 60 * 1000) {
+      providerServicesSyncedAt = Date.now();
+      res.json(GetServicesResponse.parse((await syncLiveServices()).map(({ providerServiceId: _providerServiceId, ...service }) => service)));
+      return;
+    }
+    const services = await ensureServices();
+    res.json(GetServicesResponse.parse(services.filter((service) => configuredServiceIds.has(service.id)).map(({ providerServiceId: _providerServiceId, ...service }) => service)));
+  } catch {
+    res.status(503).json({ error: "El catálogo no está disponible en este momento." });
   }
-  const services = await ensureServices();
-  res.json(GetServicesResponse.parse(services.map(({ providerServiceId: _providerServiceId, ...service }) => service)));
 });
 
 router.get("/panel/orders", async (req, res): Promise<void> => {
@@ -101,7 +146,10 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Revisa los datos del pedido." });
     return;
   }
-  const [service] = await db.select().from(servicesTable).where(eq(servicesTable.id, parsed.data.serviceId)).limit(1);
+  let [service] = await db.select().from(servicesTable).where(eq(servicesTable.id, parsed.data.serviceId)).limit(1);
+  if (configuredServiceIds.has(parsed.data.serviceId)) {
+    [service] = (await syncLiveServices()).filter((candidate) => candidate.id === parsed.data.serviceId);
+  }
   if (!service || parsed.data.quantity < service.minQuantity || parsed.data.quantity > service.maxQuantity) {
     res.status(400).json({ error: "La cantidad no está disponible para este servicio." });
     return;
