@@ -162,8 +162,13 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     return;
   }
   let [service] = await db.select().from(servicesTable).where(eq(servicesTable.id, parsed.data.serviceId)).limit(1);
-  if (configuredServiceIds.has(parsed.data.serviceId)) {
-    [service] = (await syncLiveServices()).filter((candidate) => candidate.id === parsed.data.serviceId);
+  try {
+    if (configuredServiceIds.has(parsed.data.serviceId)) {
+      [service] = (await syncLiveServices()).filter((candidate) => candidate.id === parsed.data.serviceId);
+    }
+  } catch {
+    res.status(503).json({ error: "El servicio no está disponible en este momento." });
+    return;
   }
   if (!service || !validateLinkForPlatform(service.platform, parsed.data.link)) {
     res.status(400).json({ error: `El enlace debe corresponder a ${service?.platform ?? "la red social"} y apuntar a un contenido válido.` });

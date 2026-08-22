@@ -33,7 +33,6 @@ import {
   getGetCurrentUserQueryKey,
   getGetDashboardQueryKey,
   getGetOrdersQueryKey,
-  useCreateOrder,
   useGetCurrentUser,
   useGetDashboard,
   useGetOrders,
@@ -302,7 +301,6 @@ function DashboardPage() {
 
 function NewOrderPage() {
   const { data: services, isLoading, isError, refetch } = useGetServices();
-  const createOrder = useCreateOrder();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [serviceId, setServiceId] = useState('');
@@ -310,6 +308,8 @@ function NewOrderPage() {
   const [quantity, setQuantity] = useState('');
   const [errors, setErrors] = useState<{ service?: string; link?: string; quantity?: string }>({});
   const [success, setSuccess] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const selected = useMemo(() => services?.find((service) => service.id === serviceId), [services, serviceId]);
   const liveLinkError = selected && link.trim() ? validateLinkForPlatform(selected.platform, link) : undefined;
   const serviceGroups = useMemo(() => {
@@ -327,32 +327,44 @@ function NewOrderPage() {
     setErrors(next);
     return Object.keys(next).length === 0;
   };
-  const submit = () => {
+  const submit = async () => {
     if (!validate()) return;
-    createOrder.mutate({ data: { serviceId, link: link.trim(), quantity: Number(quantity) } }, {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() });
-        void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-        setSuccess('Pedido creado correctamente. Abriendo seguimiento…');
-        window.setTimeout(() => setLocation('/pedidos-en-proceso'), 500);
-      },
-    });
+    setSubmitError('');
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/panel/orders', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId, link: link.trim(), quantity: Number(quantity) }),
+      });
+      if (!response.ok) throw new Error('Order request failed');
+      await response.json();
+      void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+      setSuccess('Pedido creado correctamente. Abriendo seguimiento…');
+      window.setTimeout(() => setLocation('/pedidos-en-proceso'), 500);
+    } catch {
+      setSubmitError('No se pudo crear el pedido. Revisa los datos e inténtalo de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   if (isLoading) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento." /><LoadingRows count={3} /></>;
   if (isError || !services) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento." /><ErrorState onRetry={() => void refetch()} /></>;
   return <div className="fade-up">
     <PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento." />
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,.7fr)]">
-      <form className="terminal-panel p-5 md:p-6" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <form noValidate className="terminal-panel p-5 md:p-6" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <div className="mb-6 flex items-center gap-3 border-b border-[hsl(var(--border))] pb-4"><div className="grid h-8 w-8 place-items-center rounded-md border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]"><Target size={16} /></div><div><p className="terminal-label">Nueva solicitud</p><h3 className="mt-1 text-sm font-semibold">Detalles del pedido</h3></div></div>
         <div className="space-y-5">
           <div><span className="terminal-label mb-2 block">Red social / servicio</span><div className="space-y-3">{serviceGroups.map(([platform, platformServices]) => <section key={platform} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-3 py-2.5"><span className="text-xs font-semibold uppercase tracking-[.08em]">{platform}</span><span className="terminal-label text-[8px]">{platformServices.length} servicio{platformServices.length === 1 ? '' : 's'}</span></div><div className="divide-y divide-[hsl(var(--border))]">{platformServices.map((service) => <label key={service.id} className={`flex cursor-pointer items-start gap-3 px-3 py-3 transition hover:bg-[hsl(var(--secondary)/.5)] ${selected?.id === service.id ? 'bg-[hsl(var(--primary)/.07)]' : ''}`}><input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]" /><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{service.name}</span><span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span></span>{selected?.id === service.id && <Check size={15} className="mt-0.5 shrink-0 text-[hsl(var(--primary))]" />}</label>)}</div></section>)}</div>{errors.service && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.service}</span>}</div>
           <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Enlace de destino</span>{selected && <span className="terminal-label text-[8px]">Solo {selected.platform}</span>}</div><div className="relative"><Link2 size={15} className="absolute left-3 top-3 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-order-link" value={link} onChange={(event) => { setLink(event.target.value); setErrors((current) => ({ ...current, link: undefined })); }} placeholder={selected ? `https://${selected.platform.toLowerCase()}.com/...` : 'Selecciona un servicio primero'} className={`w-full rounded-md border bg-[hsl(var(--background))] py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.link || liveLinkError ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} /></div>{(errors.link || liveLinkError) && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.link || liveLinkError}</span>}{selected && !liveLinkError && link.trim() && <span className="mt-1.5 block text-xs text-[hsl(var(--primary))]">Enlace compatible con {selected.platform}.</span>}</label>
           <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Cantidad</span>{selected && <span className="mono text-[10px] text-[hsl(var(--muted-foreground))]">min {selected.minQuantity.toLocaleString('es-ES')} / max {selected.maxQuantity.toLocaleString('es-ES')}</span>}</div><input data-testid="input-order-quantity" type="number" min={selected?.minQuantity ?? 1} max={selected?.maxQuantity} value={quantity} onChange={(event) => { setQuantity(event.target.value); setErrors((current) => ({ ...current, quantity: undefined })); }} placeholder="0" className={`w-full rounded-md border bg-[hsl(var(--background))] px-3 py-2.5 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.quantity ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} />{errors.quantity && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.quantity}</span>}</label>
         </div>
-        {createOrder.isError && <p className="mt-5 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-sm text-[hsl(var(--destructive))]">No se pudo crear el pedido. Revisa los datos e inténtalo de nuevo.</p>}
+        {submitError && <p className="mt-5 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-sm text-[hsl(var(--destructive))]">{submitError}</p>}
         {success && <p className="mt-5 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-sm text-[hsl(var(--accent))]">{success}</p>}
-        <div className="mt-6 flex justify-end"><button type="submit" data-testid="button-submit-order" disabled={createOrder.isPending || Boolean(success)} className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{createOrder.isPending ? <LoaderCircle size={15} className="animate-spin" /> : <Plus size={15} />}{createOrder.isPending ? 'Creando pedido…' : 'Crear pedido'}</button></div>
+        <div className="mt-6 flex justify-end"><button type="submit" formNoValidate data-testid="button-submit-order" disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
       </form>
       <aside className="terminal-panel h-fit p-5"><p className="terminal-label">Vista previa</p>{selected ? <div className="mt-5"><div className="mb-4 flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{selected.name}</h3><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{selected.platform} · {selected.contentType}</p></div><Sparkles size={15} className="text-[hsl(var(--primary))]" /></div><p className="text-sm leading-6 text-[hsl(var(--muted-foreground))]">{selected.description}</p><div className="mt-5 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))]"><div className="bg-[hsl(var(--card))] p-3"><Clock3 size={14} className="mb-2 text-[hsl(var(--primary))]" /><p className="terminal-label text-[8px]">Tiempo</p><p className="mt-1 text-xs font-medium">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-3"><RefreshCw size={14} className="mb-2 text-[hsl(var(--accent))]" /><p className="terminal-label text-[8px]">Recarga</p><p className="mt-1 text-xs font-medium">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[205px] flex-col items-center justify-center text-center"><PackageCheck size={18} className="mb-3 text-[hsl(var(--muted-foreground))]" /><p className="text-sm font-semibold">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Verás aquí sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
