@@ -35,6 +35,8 @@ import {
   getGetCurrentUserQueryKey,
   getGetDashboardQueryKey,
   getGetOrdersQueryKey,
+  getGetServicesQueryKey,
+  getServices,
   useGetCurrentUser,
   useGetDashboard,
   useGetOrders,
@@ -452,7 +454,7 @@ function DashboardPage() {
 }
 
 function NewOrderPage() {
-  const { data: services, isLoading, isError, refetch } = useGetServices();
+  const { data: services, isLoading, isError, refetch } = useGetServices({ query: { queryKey: getGetServicesQueryKey(), staleTime: 60_000, gcTime: 10 * 60_000, refetchOnWindowFocus: false } });
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [serviceId, setServiceId] = useState('');
@@ -769,8 +771,17 @@ function BootScreen() {
 
 function Router() {
   const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const currentUser = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), retry: false } });
   useEffect(() => { if (location !== '/login' && !currentUser.isLoading && currentUser.isError) setLocation('/login'); }, [location, currentUser.isLoading, currentUser.isError, setLocation]);
+  useEffect(() => {
+    if (!currentUser.data) return;
+    void queryClient.prefetchQuery({
+      queryKey: getGetServicesQueryKey(),
+      queryFn: ({ signal }) => getServices({ signal }),
+      staleTime: 60_000,
+    });
+  }, [currentUser.data, queryClient]);
   if (location === '/login') return <LoginPage currentUser={currentUser.data} />;
   if (currentUser.isLoading) return <BootScreen />;
   if (currentUser.isError || !currentUser.data) return <BootScreen />;

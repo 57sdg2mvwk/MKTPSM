@@ -24,7 +24,11 @@ import { randomUUID } from "node:crypto";
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso"];
 const configuredServiceIds = new Set(["4665", "4668", "11161", "9397", "11228", "11241"]);
+const LIVE_SERVICES_CACHE_MS = 60_000;
 class PendingReservationError extends Error {}
+
+let liveServicesCache: { fetchedAt: number; services: Array<typeof servicesTable.$inferSelect> } | null = null;
+let liveServicesRefresh: Promise<Array<typeof servicesTable.$inferSelect>> | null = null;
 
 const validateLinkForPlatform = (platform: string, value: string) => {
   let url: URL;
@@ -76,36 +80,49 @@ const providerPlatform = (service: Record<string, unknown>) => {
 };
 
 const syncLiveServices = async () => {
-  const remoteServices = await marketerum.services();
-  if (!Array.isArray(remoteServices)) throw new Error("Invalid provider services response");
-  const existing = new Map((await db.select().from(servicesTable)).map((service) => [service.id, service]));
-  const selected = remoteServices
-    .filter((service) => configuredServiceIds.has(String(service.service ?? service.id ?? "")))
-    .map((service) => {
-      const id = String(service.service ?? service.id);
-      return {
-        id,
-        name: cleanServiceName(service.name, id),
-        platform: providerPlatform(service),
-        contentType: decodeProviderText(service.type) || "Servicio",
-        description: decodeProviderText(service.category) || "Servicio disponible en tiempo real.",
-        minQuantity: Number(service.min),
-        maxQuantity: Number(service.max),
-        supportsRefill: service.refill === true || service.refill === "true",
-        estimatedTime: "En tiempo real",
-        providerServiceId: id,
-        pricePerThousandMicros: decimalToMicros(service.rate) ?? existing.get(id)?.pricePerThousandMicros ?? null,
-      };
-    })
-    .filter((service) => Number.isFinite(service.minQuantity) && Number.isFinite(service.maxQuantity));
-  if (!selected.length) throw new Error("Configured provider service not found");
-  for (const service of selected) {
-    await db.insert(servicesTable).values(service).onConflictDoUpdate({
-      target: servicesTable.id,
-      set: service,
-    });
+  if (liveServicesCache && Date.now() - liveServicesCache.fetchedAt < LIVE_SERVICES_CACHE_MS) {
+    return liveServicesCache.services;
   }
-  return db.select().from(servicesTable).where(inArray(servicesTable.id, [...configuredServiceIds]));
+  if (liveServicesRefresh) return liveServicesRefresh;
+  liveServicesRefresh = (async () => {
+    const remoteServices = await marketerum.services();
+    if (!Array.isArray(remoteServices)) throw new Error("Invalid provider services response");
+    const existing = new Map((await db.select().from(servicesTable)).map((service) => [service.id, service]));
+    const selected = remoteServices
+      .filter((service) => configuredServiceIds.has(String(service.service ?? service.id ?? "")))
+      .map((service) => {
+        const id = String(service.service ?? service.id);
+        return {
+          id,
+          name: cleanServiceName(service.name, id),
+          platform: providerPlatform(service),
+          contentType: decodeProviderText(service.type) || "Servicio",
+          description: decodeProviderText(service.category) || "Servicio disponible en tiempo real.",
+          minQuantity: Number(service.min),
+          maxQuantity: Number(service.max),
+          supportsRefill: service.refill === true || service.refill === "true",
+          estimatedTime: "En tiempo real",
+          providerServiceId: id,
+          pricePerThousandMicros: decimalToMicros(service.rate) ?? existing.get(id)?.pricePerThousandMicros ?? null,
+        };
+      })
+      .filter((service) => Number.isFinite(service.minQuantity) && Number.isFinite(service.maxQuantity));
+    if (!selected.length) throw new Error("Configured provider service not found");
+    for (const service of selected) {
+      await db.insert(servicesTable).values(service).onConflictDoUpdate({
+        target: servicesTable.id,
+        set: service,
+      });
+    }
+    const refreshed = await db.select().from(servicesTable).where(inArray(servicesTable.id, [...configuredServiceIds]));
+    liveServicesCache = { fetchedAt: Date.now(), services: refreshed };
+    return refreshed;
+  })();
+  try {
+    return await liveServicesRefresh;
+  } finally {
+    liveServicesRefresh = null;
+  }
 };
 
 const elapsed = (createdAt: Date) => {
