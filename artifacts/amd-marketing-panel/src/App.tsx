@@ -55,7 +55,7 @@ import './index.css';
 const queryClient = new QueryClient();
 
 function AmdLogo({ className = '' }: { className?: string }) {
-  return <img src={amdLogo} alt="AMD Marketing Digital" className={`block h-auto w-auto object-contain ${className}`} />;
+  return <img src={amdLogo} alt="AMD Marketing Digital" className={`block object-contain ${className}`} />;
 }
 
 const pageTitles: Record<string, string> = {
