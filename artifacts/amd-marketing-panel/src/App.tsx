@@ -160,13 +160,13 @@ function statusTone(status: string) {
 function ErrorState({ onRetry, compact = false }: { onRetry?: () => void; compact?: boolean }) {
   return (
     <div className={`terminal-panel ${compact ? 'p-5' : 'p-10'} text-center`}>
-      <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-sm border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] text-[hsl(var(--destructive))]">
+      <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-sm border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] text-[hsl(var(--destructive))] uppercase">
         <AlertCircle size={19} />
       </div>
-      <p className="font-semibold text-[hsl(var(--foreground))]">No pudimos cargar la informacion</p>
-      <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">Comprueba la conexion y vuelve a intentarlo.</p>
+      <p className="font-bold text-[hsl(var(--foreground))] uppercase">No pudimos cargar la informacion</p>
+      <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))] uppercase">Comprueba la conexion y vuelve a intentarlo.</p>
       {onRetry && (
-        <button data-testid="button-retry" onClick={onRetry} className="mt-5 inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm font-semibold transition hover:bg-[hsl(var(--card))]">
+        <button data-testid="button-retry" onClick={onRetry} className="mt-3 inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-[11px] font-bold transition hover:bg-[hsl(var(--card))] uppercase">
           <RefreshCw size={14} /> Reintentar
         </button>
       )}
@@ -176,12 +176,12 @@ function ErrorState({ onRetry, compact = false }: { onRetry?: () => void; compac
 
 function EmptyState({ icon: Icon, title, description, action }: { icon: typeof PackageCheck; title: string; description: string; action?: ReactNode }) {
   return (
-    <div className="border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] p-12 text-center rounded-sm">
-      <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--primary))]">
+    <div className="border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 text-center rounded-sm uppercase">
+      <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--primary))] uppercase">
         <Icon size={21} />
       </div>
-      <p className="font-semibold">{title}</p>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p>
+      <p className="font-bold uppercase">{title}</p>
+      <p className="mx-auto mt-2 max-w-sm text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">{description}</p>
       {action}
     </div>
   );
@@ -189,9 +189,9 @@ function EmptyState({ icon: Icon, title, description, action }: { icon: typeof P
 
 function LoadingRows({ count = 4 }: { count?: number }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 uppercase">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="skeleton h-[76px] rounded-sm" />
+        <div key={index} className="skeleton h-[76px] rounded-sm uppercase" />
       ))}
     </div>
   );
@@ -205,43 +205,43 @@ function StatusChip({ status }: { status: string }) {
     danger: 'bg-[hsl(var(--destructive)/.12)] text-[hsl(var(--destructive))] border-[hsl(var(--destructive)/.2)]',
     active: 'bg-[hsl(var(--info)/.1)] text-[hsl(var(--info))] border-[hsl(var(--info)/.2)]',
   };
-  return <span data-testid={`status-order-${status}`} className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${styles[tone]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{statusLabel(status)}</span>;
+  return <span data-testid={`status-order-${status}`} className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${styles[tone]}`}><span className="h-1.5 w-1.5 rounded-full bg-current uppercase" />{statusLabel(status)}</span>;
 }
 
 function OrderMetric({ label, value, tone = 'default', isCurrency = false }: { label: string; value: number | null; tone?: 'default' | 'primary' | 'accent', isCurrency?: boolean }) {
   const color = tone === 'primary' ? 'text-[hsl(var(--primary))]' : tone === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--foreground))]';
   const displayValue = value == null ? '—' : isCurrency ? formatUsd(value) : value.toLocaleString('es-ES');
-  return <div className="min-w-0 border-l border-[hsl(var(--border))] pl-3 first:border-l-0 first:pl-0"><p className="terminal-label text-[8px]">{label}</p><p className={`mono mt-1 truncate text-sm font-medium ${color}`}>{displayValue}</p></div>;
+  return <div className="min-w-0 border-l border-[hsl(var(--border))] pl-3 first:border-l-0 first:pl-0 uppercase"><p className="terminal-label text-[8px] uppercase">{label}</p><p className={`mono mt-1 truncate text-[11px] font-medium ${color}`}>{displayValue}</p></div>;
 }
 
 function OrderLine({ order, now }: { order: Order; now: number }) {
   return (
-    <div data-testid={`row-order-${order.id}`} className="group grid gap-4 border-b border-[hsl(var(--border)/.7)] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="mono text-[11px] text-[hsl(var(--muted-foreground))]">#{shortId(order.id)}</span>
+    <div data-testid={`row-order-${order.id}`} className="group grid gap-2 border-b border-[hsl(var(--border)/.7)] px-3 py-2 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center uppercase">
+      <div className="min-w-0 uppercase">
+        <div className="flex items-center gap-2 uppercase">
+          <span className="mono text-[11px] text-[hsl(var(--muted-foreground))] uppercase">#{shortId(order.id)}</span>
           <StatusChip status={order.status} />
         </div>
-        <p data-testid={`text-service-${order.id}`} className="mt-2 truncate font-semibold">{order.serviceName}</p>
-        <p className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.platform} · {order.contentType}</p>
+        <p data-testid={`text-service-${order.id}`} className="mt-2 truncate font-bold uppercase">{order.serviceName}</p>
+        <p className="mt-0.5 truncate text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{order.platform} · {order.contentType}</p>
       </div>
-      <div className="min-w-0">
-        <div className="mb-2 flex items-center justify-between text-xs">
+      <div className="min-w-0 uppercase">
+        <div className="mb-2 flex items-center justify-between text-[10px] uppercase">
           <span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Avance</span>
-          <span data-testid={`text-progress-${order.id}`} className="mono font-medium text-[hsl(var(--foreground))]">{order.progress}%</span>
+          <span data-testid={`text-progress-${order.id}`} className="mono font-bold text-[hsl(var(--foreground))] uppercase">{order.progress}%</span>
         </div>
-        <div className="h-1.5 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm">
-          <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500" style={{ width: `${Math.min(100, Math.max(0, order.progress))}%` }} />
+        <div className="h-1.5 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm uppercase">
+          <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500 uppercase" style={{ width: `${Math.min(100, Math.max(0, order.progress))}%` }} />
         </div>
       </div>
-      <div className="text-sm md:text-right">
-        <p className="mono font-medium">{formatMetric(order.delivered)} <span className="text-[10px] text-[hsl(var(--muted-foreground))]">/ {order.quantity.toLocaleString('es-ES')}</span></p>
-        <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{liveElapsed(order.createdAt, now)}</p>
+      <div className="text-[11px] md:text-right uppercase">
+        <p className="mono font-bold uppercase">{formatMetric(order.delivered)} <span className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase">/ {order.quantity.toLocaleString('es-ES')}</span></p>
+        <p className="mt-0.5 text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{liveElapsed(order.createdAt, now)}</p>
       </div>
-      <div className="flex items-center justify-end gap-2 text-right">
-        <span className="terminal-label text-[8px]">{lastUpdatedLabel(order.lastSyncedAt, now)}</span>
+      <div className="flex items-center justify-end gap-2 text-right uppercase">
+        <span className="terminal-label text-[8px] uppercase">{lastUpdatedLabel(order.lastSyncedAt, now)}</span>
       </div>
-      <div className="col-span-full grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[hsl(var(--border)/.7)] pt-3 sm:grid-cols-5">
+      <div className="col-span-full grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[hsl(var(--border)/.7)] pt-3 sm:grid-cols-5 uppercase">
         <OrderMetric label="Cantidad total" value={order.quantity} />
         <OrderMetric label="Inicio" value={order.startCount} />
         <OrderMetric label="Enviados" value={order.delivered} tone="accent" />
@@ -333,27 +333,27 @@ function Sidebar({ user, onClose }: { user: CurrentUser; onClose?: () => void })
     });
   };
   return (
-    <aside className="flex h-full w-[96px] shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-1.5 py-3">
-      <div className="flex items-center justify-center px-1 pb-6">
-        <Link href="/dashboard" data-testid="link-brand" onClick={onClose} className="flex items-center gap-3">
-          <AmdLogo className="h-[25px] w-[60px]" />
+    <aside className="flex h-full w-[96px] shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-1.5 py-3 uppercase">
+      <div className="flex items-center justify-center px-1 pb-6 uppercase">
+        <Link href="/dashboard" data-testid="link-brand" onClick={onClose} className="flex items-center gap-3 uppercase">
+          <AmdLogo className="h-[25px] w-[60px] uppercase" />
         </Link>
-        {onClose && <button data-testid="button-close-menu" onClick={onClose} className="rounded-sm p-1.5 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"><PanelLeftClose size={15} /></button>}
+        {onClose && <button data-testid="button-close-menu" onClick={onClose} className="rounded-sm p-1.5 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] uppercase"><PanelLeftClose size={15} /></button>}
       </div>
-      <div className="px-0.5 pb-2.5 text-center"><p className="mono text-[7px] font-bold uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">Operaciones</p></div>
-      <nav className="space-y-1">
+      <div className="px-0.5 pb-2.5 text-center uppercase"><p className="mono text-[7px] font-bold uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">Operaciones</p></div>
+      <nav className="space-y-1 uppercase">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = location === href;
           const compactLabel = label === 'Nuevo pedido' ? 'Nuevo' : label === 'En proceso' ? 'Proceso' : label;
-          return <Link key={href} href={href} onClick={onClose} data-testid={`link-nav-${href.slice(1)}`} className={`group relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-sm px-0.5 py-1.5 text-center transition ${active ? 'border border-[hsl(var(--primary)/.32)] bg-[hsl(var(--primary)/.09)] text-[hsl(var(--primary))]' : 'border border-transparent text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}><Icon size={16} strokeWidth={active ? 2.2 : 1.7} /><span className="text-[7px] font-extrabold uppercase tracking-[.08em]">{compactLabel}</span>{href === '/pedidos-en-proceso' && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]" />}</Link>;
+          return <Link key={href} href={href} onClick={onClose} data-testid={`link-nav-${href.slice(1)}`} className={`group relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-sm px-0.5 py-1.5 text-center transition ${active ? 'border border-[hsl(var(--primary)/.32)] bg-[hsl(var(--primary)/.09)] text-[hsl(var(--primary))]' : 'border border-transparent text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}><Icon size={16} strokeWidth={active ? 2.2 : 1.7} /><span className="text-[7px] font-extrabold uppercase tracking-[.08em]">{compactLabel}</span>{href === '/pedidos-en-proceso' && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))] uppercase" />}</Link>;
         })}
       </nav>
-      <div className="mt-auto">
-        <div className="mb-2 rounded-sm border border-[hsl(var(--border)/.8)] bg-[hsl(var(--card))] px-1.5 py-2 text-center">
-          <div className="mb-1 flex justify-center text-[hsl(var(--accent))]"><ShieldCheck size={14} /></div>
+      <div className="mt-auto uppercase">
+        <div className="mb-2 rounded-sm border border-[hsl(var(--border)/.8)] bg-[hsl(var(--card))] px-1.5 py-2 text-center uppercase">
+          <div className="mb-1 flex justify-center text-[hsl(var(--accent))] uppercase"><ShieldCheck size={14} /></div>
           <p className="text-[8px] font-extrabold uppercase tracking-[.08em] text-[hsl(var(--accent))]">Sesion</p>
         </div>
-        <button data-testid="button-logout" onClick={handleLogout} disabled={logout.isPending} className="flex w-full flex-col items-center gap-1 rounded-sm px-1 py-2 text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--destructive)/.08)] hover:text-[hsl(var(--destructive))] disabled:opacity-50"><LogOut size={16} /><span className="text-[8px] font-extrabold uppercase tracking-[.08em]">{logout.isPending ? 'Saliendo' : 'Salir'}</span></button>
+        <button data-testid="button-logout" onClick={handleLogout} disabled={logout.isPending} className="flex w-full flex-col items-center gap-1 rounded-sm px-1 py-2 text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--destructive)/.08)] hover:text-[hsl(var(--destructive))] disabled:opacity-50 uppercase"><LogOut size={16} /><span className="text-[8px] font-extrabold uppercase tracking-[.08em]">{logout.isPending ? 'Saliendo' : 'Salir'}</span></button>
       </div>
     </aside>
   );
@@ -363,22 +363,22 @@ function Shell({ user, children }: { user: CurrentUser; children: ReactNode }) {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div className="app-noise min-h-[100dvh] bg-[hsl(var(--background))]">
-      <div className="fixed inset-y-0 left-0 z-40 hidden md:block"><Sidebar user={user} /></div>
-      {menuOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setMenuOpen(false)}><div className="h-full w-[96px]" onClick={(event) => event.stopPropagation()}><Sidebar user={user} onClose={() => setMenuOpen(false)} /></div></div>}
-       <main className="min-h-[100dvh] md:pl-[96px]">
-        <header className="sticky top-0 z-20 flex h-[54px] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] px-5 md:px-8">
-          <div className="flex items-center gap-3"><button data-testid="button-open-menu" onClick={() => setMenuOpen(true)} className="rounded-sm p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] md:hidden"><Menu size={18} /></button><div className="flex items-center gap-3"><p className="mono text-[10px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">amd://{location.slice(1) || 'dashboard'}</p><span className="hidden h-3 w-px bg-[hsl(var(--border))] sm:block" /><h1 data-testid="text-page-title" className="hidden text-sm font-semibold sm:block">{pageTitles[location] || 'Pagina'}</h1></div></div>
-          <div className="flex items-center gap-3"><div className="hidden items-center gap-2 text-[10px] font-medium uppercase tracking-[.08em] text-[hsl(var(--muted-foreground))] sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" />Sistema online</div><div className="grid h-7 w-7 place-items-center rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[10px] font-bold text-[hsl(var(--foreground))]" title={user.email}>{user.email.slice(0, 1).toUpperCase()}</div></div>
+    <div className="app-noise min-h-[100dvh] bg-[hsl(var(--background))] uppercase">
+      <div className="fixed inset-y-0 left-0 z-40 hidden md:block uppercase"><Sidebar user={user} /></div>
+      {menuOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden uppercase" onClick={() => setMenuOpen(false)}><div className="h-full w-[96px] uppercase" onClick={(event) => event.stopPropagation()}><Sidebar user={user} onClose={() => setMenuOpen(false)} /></div></div>}
+       <main className="min-h-[100dvh] md:pl-[96px] uppercase">
+        <header className="sticky top-0 z-20 flex h-[54px] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 md:px-4 uppercase">
+          <div className="flex items-center gap-3 uppercase"><button data-testid="button-open-menu" onClick={() => setMenuOpen(true)} className="rounded-sm p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] md:hidden uppercase"><Menu size={18} /></button><div className="flex items-center gap-3 uppercase"><p className="mono text-[10px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">amd://{location.slice(1) || 'dashboard'}</p><span className="hidden h-3 w-px bg-[hsl(var(--border))] sm:block uppercase" /><h1 data-testid="text-page-title" className="hidden text-[11px] font-bold sm:block uppercase">{pageTitles[location] || 'Pagina'}</h1></div></div>
+          <div className="flex items-center gap-3 uppercase"><div className="hidden items-center gap-2 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--muted-foreground))] sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] uppercase" />Sistema online</div><div className="grid h-7 w-7 place-items-center rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[10px] font-bold text-[hsl(var(--foreground))] uppercase" title={user.email}>{user.email.slice(0, 1).toUpperCase()}</div></div>
         </header>
-        <div className="mx-auto max-w-[1600px] p-5 md:p-8">{children}</div>
+        <div className="mx-auto max-w-[1600px] p-3 md:p-4 uppercase">{children}</div>
       </main>
     </div>
   );
 }
 
 function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
-  return <div className="mb-6 flex flex-col justify-between gap-5 border-b border-[hsl(var(--border))] pb-5 md:flex-row md:items-end"><div><p className="terminal-label mb-2 text-[hsl(var(--primary))]">{eyebrow}</p><h2 className="text-xl font-semibold tracking-[-.025em] md:text-2xl">{title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p></div>{action}</div>;
+  return <div className="mb-3 flex flex-col justify-between gap-3 border-b border-[hsl(var(--border))] pb-5 md:flex-row md:items-end uppercase"><div><p className="terminal-label mb-2 text-[hsl(var(--primary))] uppercase">{eyebrow}</p><h2 className="text-[14px] font-bold tracking-[-.025em] md:text-[16px] uppercase">{title}</h2><p className="mt-2 max-w-2xl text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">{description}</p></div>{action}</div>;
 }
 
 function DashboardPage() {
@@ -391,55 +391,55 @@ function DashboardPage() {
     { label: 'Faltantes', value: formatMetric(data.remainingQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades por procesar', icon: CircleHelp, accent: data.needsAttention ? 'warning' : 'primary' },
     { label: 'Completados', value: data.completedOrders, detail: `${data.totalOrders} pedidos totales`, icon: CheckCircle2, accent: 'accent' },
   ];
-  return <div className="fade-up"><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rapida del estado de tus pedidos y actividad reciente." action={<Link href="/nuevo-pedido" data-testid="link-new-order-dashboard" className="inline-flex items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3.5 py-2 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110"><Plus size={15} /> Nuevo pedido</Link>} />
-    <div className="terminal-panel mb-6 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-4">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-5`}><div className="mb-6 flex items-center justify-between"><p className="terminal-label">{label}</p><Icon size={16} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-4"><p data-testid={`text-stat-${label}`} className="mono text-3xl font-medium tracking-[-.08em]">{value}</p><p className="pb-1 text-right text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{detail}</p></div></div>)}</div>
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
-     <section className="terminal-panel flex flex-col overflow-hidden max-h-[500px]"><div className="flex shrink-0 items-center justify-between border-b border-[hsl(var(--border))] px-5 py-4 bg-[hsl(var(--secondary))]"><div><p className="terminal-label">Actividad</p><h3 className="mt-1 text-sm font-semibold">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={12} /></Link></div><div className="overflow-y-auto">{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-5"><EmptyState icon={PackageCheck} title="Aun no hay actividad" description="Los pedidos nuevos apareceran aqui en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear primer pedido <ArrowRight size={14} /></Link>} /></div>}</div></section>
-      <div className="flex flex-col gap-4">
-        <section className="terminal-panel p-5">
-          <div className="mb-5 flex items-start justify-between">
+  return <div className="fade-up uppercase"><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rapida del estado de tus pedidos y actividad reciente." action={<Link href="/nuevo-pedido" data-testid="link-new-order-dashboard" className="inline-flex items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3.5 py-2 text-[10px] font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 uppercase"><Plus size={15} /> Nuevo pedido</Link>} />
+    <div className="terminal-panel mb-3 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-4 uppercase">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-5`}><div className="mb-3 flex items-center justify-between uppercase"><p className="terminal-label uppercase">{label}</p><Icon size={16} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-2 uppercase"><p data-testid={`text-stat-${label}`} className="mono text-[18px] font-bold tracking-[-.08em] uppercase">{value}</p><p className="pb-1 text-right text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{detail}</p></div></div>)}</div>
+    <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)] uppercase">
+     <section className="terminal-panel flex flex-col overflow-hidden max-h-[500px] uppercase"><div className="flex shrink-0 items-center justify-between border-b border-[hsl(var(--border))] px-3 py-2 bg-[hsl(var(--secondary))] uppercase"><div><p className="terminal-label uppercase">Actividad</p><h3 className="mt-1 text-[11px] font-bold uppercase">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={12} /></Link></div><div className="overflow-y-auto uppercase">{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-3 uppercase"><EmptyState icon={PackageCheck} title="Aun no hay actividad" description="Los pedidos nuevos apareceran aqui en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-3 inline-flex items-center gap-2 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Crear primer pedido <ArrowRight size={14} /></Link>} /></div>}</div></section>
+      <div className="flex flex-col gap-2 uppercase">
+        <section className="terminal-panel p-3 uppercase">
+          <div className="mb-3 flex items-start justify-between uppercase">
             <div>
-              <p className="terminal-label">Finanzas</p>
-              <h3 className="mt-1 text-sm font-semibold">Credito mensual</h3>
+              <p className="terminal-label uppercase">Finanzas</p>
+              <h3 className="mt-1 text-[11px] font-bold uppercase">Credito mensual</h3>
             </div>
-            <div className="grid h-6 w-6 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]"><DollarSign size={14} /></div>
+            <div className="grid h-6 w-6 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><DollarSign size={14} /></div>
           </div>
-          <div className="mb-4 space-y-2">
+          <div className="mb-2 space-y-2 uppercase">
             <div className="flex justify-between text-[10px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
               <span>Consumido</span>
               <span>Disponible</span>
             </div>
-            <div className="h-1.5 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm">
-              <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500" style={{ width: `${(data.credit.spentUsd / data.credit.allowanceUsd) * 100}%` }} />
+            <div className="h-1.5 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm uppercase">
+              <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500 uppercase" style={{ width: `${(data.credit.spentUsd / data.credit.allowanceUsd) * 100}%` }} />
             </div>
-            <div className="flex justify-between font-mono text-sm font-medium">
-              <span className="text-[hsl(var(--foreground))]">{formatUsd(data.credit.spentUsd)}</span>
-              <span className="text-[hsl(var(--primary))]">{formatUsd(data.credit.availableUsd)}</span>
+            <div className="flex justify-between font-mono text-[11px] font-bold uppercase">
+              <span className="text-[hsl(var(--foreground))] uppercase">{formatUsd(data.credit.spentUsd)}</span>
+              <span className="text-[hsl(var(--primary))] uppercase">{formatUsd(data.credit.availableUsd)}</span>
             </div>
           </div>
-          <div className="space-y-3 border-t border-[hsl(var(--border))] pt-4 text-xs">
-            <div className="flex justify-between"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Asignacion total</span><span className="mono font-medium">{formatUsd(data.credit.allowanceUsd)}</span></div>
-            <div className="flex justify-between"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Reinicio</span><span className="mono font-medium">{formatDate(data.credit.resetsAt)}</span></div>
+          <div className="space-y-3 border-t border-[hsl(var(--border))] pt-4 text-[10px] uppercase">
+            <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Asignacion total</span><span className="mono font-bold uppercase">{formatUsd(data.credit.allowanceUsd)}</span></div>
+            <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Reinicio</span><span className="mono font-bold uppercase">{formatDate(data.credit.resetsAt)}</span></div>
           </div>
         </section>
 
-        <section className="terminal-panel p-5">
-          <div className="mb-5 flex items-start justify-between">
+        <section className="terminal-panel p-3 uppercase">
+          <div className="mb-3 flex items-start justify-between uppercase">
             <div>
-              <p className="terminal-label">Estado del sistema</p>
-              <h3 className="mt-1 text-sm font-semibold">Sincronizacion</h3>
+              <p className="terminal-label uppercase">Estado del sistema</p>
+              <h3 className="mt-1 text-[11px] font-bold uppercase">Sincronizacion</h3>
             </div>
-            <Zap size={16} className="text-[hsl(var(--primary))]" />
+            <Zap size={16} className="text-[hsl(var(--primary))] uppercase" />
           </div>
-          <div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-4 rounded-sm">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--primary))]"><span className="h-1.5 w-1.5 rounded-full bg-current" />Operativo</div>
-            <p data-testid="text-last-sync" className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-bold">Ultima sincronizacion<br /><span className="mono text-[hsl(var(--foreground))] font-normal tracking-normal text-xs">{formatDate(data.lastSyncAt)}</span></p>
+          <div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-4 rounded-sm uppercase">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-[hsl(var(--primary))] uppercase"><span className="h-1.5 w-1.5 rounded-full bg-current uppercase" />Operativo</div>
+            <p data-testid="text-last-sync" className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-bold">Ultima sincronizacion<br /><span className="mono text-[hsl(var(--foreground))] font-normal tracking-normal text-[10px] uppercase">{formatDate(data.lastSyncAt)}</span></p>
           </div>
-          <div className="mt-5 space-y-3 border-t border-[hsl(var(--border))] pt-5">
-            <div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Pedidos registrados</span><span className="mono font-medium">{data.totalOrders}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Metricas pendientes</span><span className="mono font-medium">{data.metricsPendingOrders}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Atencion pendiente</span><span className="mono font-medium">{data.needsAttention}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Tasa de exito</span><span className="mono font-medium">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div>
+          <div className="mt-3 space-y-3 border-t border-[hsl(var(--border))] pt-5 uppercase">
+            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Pedidos registrados</span><span className="mono font-bold uppercase">{data.totalOrders}</span></div>
+            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Metricas pendientes</span><span className="mono font-bold uppercase">{data.metricsPendingOrders}</span></div>
+            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Atencion pendiente</span><span className="mono font-bold uppercase">{data.needsAttention}</span></div>
+            <div className="flex justify-between text-[10px] uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Tasa de exito</span><span className="mono font-bold uppercase">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div>
           </div>
         </section>
       </div>
@@ -459,26 +459,38 @@ function NewOrderPage() {
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serviceSearch, setServiceSearch] = useState('');
-  const [servicePage, setServicePage] = useState(1);
+  const [selectedPlatform, setSelectedPlatform] = useState('');
+  const [selectedContentType, setSelectedContentType] = useState('TODOS');
   const requestId = useRef<string | null>(null);
   const selected = useMemo(() => services?.find((service) => service.id === serviceId), [services, serviceId]);
   const projectedCostUsd = selected?.pricePerThousandUsd != null && Number.isFinite(Number(quantity)) && Number(quantity) > 0
     ? (selected.pricePerThousandUsd * Number(quantity)) / 1000
     : null;
   const liveLinkError = selected && link.trim() ? validateLinkForPlatform(selected.platform, link) : undefined;
+  const platforms = useMemo(() => [...new Set((services ?? []).map((service) => service.platform))], [services]);
+  const platformServices = useMemo(() => (services ?? []).filter((service) => service.platform === selectedPlatform), [services, selectedPlatform]);
+  const contentTypes = useMemo(() => ['TODOS', ...new Set(platformServices.map((service) => service.contentType))], [platformServices]);
   const filteredServices = useMemo(() => {
     const query = serviceSearch.trim().toLowerCase();
-    if (!query) return services ?? [];
-    return (services ?? []).filter((service) => `${service.id} ${service.name} ${service.platform} ${service.contentType}`.toLowerCase().includes(query));
-  }, [services, serviceSearch]);
-  const servicePageCount = Math.max(1, Math.ceil(filteredServices.length / 6));
-  const pagedServices = useMemo(() => filteredServices.slice((servicePage - 1) * 6, servicePage * 6), [filteredServices, servicePage]);
-  const serviceGroups = useMemo(() => {
-    const groups = new Map<string, Service[]>();
-    for (const service of pagedServices) groups.set(service.platform, [...(groups.get(service.platform) ?? []), service]);
-    return [...groups.entries()];
-  }, [pagedServices]);
-  useEffect(() => setServicePage(1), [serviceSearch]);
+    return platformServices.filter((service) => {
+      const matchesType = selectedContentType === 'TODOS' || service.contentType === selectedContentType;
+      const matchesQuery = !query || `${service.id} ${service.name} ${service.platform} ${service.contentType}`.toLowerCase().includes(query);
+      return matchesType && matchesQuery;
+    });
+  }, [platformServices, selectedContentType, serviceSearch]);
+  useEffect(() => {
+    if (!selectedPlatform && platforms[0]) setSelectedPlatform(platforms[0]);
+    if (selectedPlatform && !platforms.includes(selectedPlatform)) setSelectedPlatform(platforms[0] ?? '');
+  }, [platforms, selectedPlatform]);
+  useEffect(() => {
+    if (!contentTypes.includes(selectedContentType)) setSelectedContentType('TODOS');
+  }, [contentTypes, selectedContentType]);
+  useEffect(() => {
+    if (selected && selected.platform !== selectedPlatform) {
+      setServiceId('');
+      setErrors((current) => ({ ...current, service: undefined, quantity: undefined }));
+    }
+  }, [selected, selectedPlatform]);
   const validate = () => {
     const next: typeof errors = {};
     if (!serviceId) next.service = 'Selecciona un servicio.';
@@ -522,31 +534,39 @@ function NewOrderPage() {
   };
   if (isLoading) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." /><LoadingRows count={3} /></>;
   if (isError || !services) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." /><ErrorState onRetry={() => void refetch()} /></>;
-  return <div className="fade-up">
+  return <div className="fade-up uppercase">
     <PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." />
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,.7fr)]">
-      <form noValidate className="terminal-panel p-5 md:p-6" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <div className="mb-6 flex items-center gap-3 border-b border-[hsl(var(--border))] pb-4"><div className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]"><Target size={16} /></div><div><p className="terminal-label">Nueva solicitud</p><h3 className="mt-1 text-sm font-semibold">Detalles del pedido</h3></div></div>
-        <div className="space-y-5">
-          <div><span className="terminal-label mb-2 block">Red social / servicio</span>
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row"><div className="relative flex-1"><Search size={13} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" /><input value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder="Buscar por nombre o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] py-2 pl-8 pr-3 text-xs outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div><span className="terminal-label self-center text-[8px]">{filteredServices.length} resultado{filteredServices.length === 1 ? '' : 's'}</span></div>
-            <div className="space-y-3">{serviceGroups.map(([platform, platformServices]) => (
-              <section key={platform} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))] rounded-sm">
-                <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-3 py-2.5 bg-[hsl(var(--card))]">
-                  <span className="text-xs font-semibold uppercase tracking-[.08em]">{platform}</span>
-                  <span className="terminal-label text-[8px]">{platformServices.length} servicio{platformServices.length === 1 ? '' : 's'}</span>
-                </div>
-                <div className="divide-y divide-[hsl(var(--border))] max-h-[400px] overflow-y-auto">
-                  {platformServices.map((service) => (
+    <div className="grid gap-2 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,.7fr)] uppercase">
+      <form noValidate className="terminal-panel p-3 md:p-4 uppercase" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+        <div className="mb-3 flex items-center gap-3 border-b border-[hsl(var(--border))] pb-4 uppercase"><div className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><Target size={16} /></div><div><p className="terminal-label uppercase">Nueva solicitud</p><h3 className="mt-1 text-[11px] font-bold uppercase">Detalles del pedido</h3></div></div>
+        <div className="space-y-5 uppercase">
+           <div><span className="terminal-label mb-2 block uppercase">Red y servicio</span>
+             <div className="mb-2 flex flex-wrap gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-1 uppercase" role="tablist" aria-label="Red social">
+               {platforms.map((platform) => (
+                 <button key={platform} type="button" role="tab" aria-selected={selectedPlatform === platform} onClick={() => { setSelectedPlatform(platform); setSelectedContentType('TODOS'); setServiceId(''); }} className={`rounded-sm px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider transition ${selectedPlatform === platform ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}>{platform}</button>
+               ))}
+             </div>
+             <div className="mb-2 flex flex-col gap-2 sm:flex-row uppercase">
+               <div className="relative flex-1 uppercase"><Search size={13} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))] uppercase" /><input value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder="Buscar por nombre o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] py-2 pl-8 pr-3 text-[10px] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div>
+               <span className="terminal-label self-center text-[8px] uppercase">{filteredServices.length} resultado{filteredServices.length === 1 ? '' : 's'}</span>
+             </div>
+             <div className="mb-2 flex flex-wrap gap-1 border-b border-[hsl(var(--border))] pb-2 uppercase" role="tablist" aria-label="Tipo de servicio">
+               {contentTypes.map((type) => (
+                 <button key={type} type="button" role="tab" aria-selected={selectedContentType === type} onClick={() => setSelectedContentType(type)} className={`rounded-sm border px-2 py-1 text-[8px] font-bold uppercase tracking-wider transition ${selectedContentType === type ? 'border-[hsl(var(--primary)/.5)] bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}`}>{type}</button>
+               ))}
+             </div>
+             <div className="space-y-1.5 uppercase">
+               {filteredServices.length ? filteredServices.map((service) => (
+                 <div key={service.id} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))] rounded-sm uppercase">
                     <label key={service.id} className={`flex cursor-pointer items-start gap-3 px-3 py-3 transition hover:bg-[hsl(var(--secondary)/.5)] ${selected?.id === service.id ? 'bg-[hsl(var(--primary)/.07)]' : ''}`}>
                       <input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium flex items-center gap-2">
+                      <span className="min-w-0 flex-1 uppercase">
+                        <span className="block text-[11px] font-bold flex items-center gap-2 uppercase">
                           {service.name}
-                          <span className="mono text-[9px] px-1 rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]">ID:{service.id}</span>
+                          <span className="mono text-[9px] px-1 rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] uppercase">ID:{service.id}</span>
                         </span>
-                        <span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="mt-1 block text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span>
+                        <div className="mt-2 flex flex-wrap gap-2 uppercase">
                           {service.pricePerThousandUsd != null && (
                             <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--primary))] bg-[hsl(var(--primary)/.05)] rounded-sm">
                                {formatUsd(service.pricePerThousandUsd)} / 1K
@@ -557,7 +577,7 @@ function NewOrderPage() {
                            ))}
                            {service.isDataSufficient && service.completionRate != null && (
                             <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] rounded-sm">
-                              <CheckCircle2 size={10} className="text-[hsl(var(--accent))]" />
+                              <CheckCircle2 size={10} className="text-[hsl(var(--accent))] uppercase" />
                               {service.completionRate}% exito
                             </span>
                           )}
@@ -570,23 +590,20 @@ function NewOrderPage() {
                            {!service.isDataSufficient && service.orderCount > 0 && <span className="inline-flex items-center border border-[hsl(var(--border))] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] rounded-sm">Datos en validacion</span>}
                         </div>
                       </span>
-                      {selected?.id === service.id && <Check size={15} className="mt-0.5 shrink-0 text-[hsl(var(--primary))]" />}
-                    </label>
-                  ))}
-                </div>
-              </section>
-             ))}</div>
-             {servicePageCount > 1 && <div className="mt-3 flex items-center justify-between border-t border-[hsl(var(--border))] pt-3"><span className="terminal-label text-[8px]">Pagina {servicePage} / {servicePageCount}</span><div className="flex gap-1"><button type="button" disabled={servicePage === 1} onClick={() => setServicePage((current) => Math.max(1, current - 1))} className="rounded-sm border border-[hsl(var(--border))] px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40">Anterior</button><button type="button" disabled={servicePage === servicePageCount} onClick={() => setServicePage((current) => Math.min(servicePageCount, current + 1))} className="rounded-sm border border-[hsl(var(--border))] px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40">Siguiente</button></div></div>}
-            {errors.service && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.service}</span>}
+                      {selected?.id === service.id && <Check size={15} className="mt-0.5 shrink-0 text-[hsl(var(--primary))] uppercase" />}
+                   </label>
+                 </div>
+               )) : <div className="border border-dashed border-[hsl(var(--border))] p-4 text-center text-[10px] font-bold text-[hsl(var(--muted-foreground))] uppercase">No hay servicios para este filtro.</div>}
+            {errors.service && <span className="mt-1.5 block text-[10px] text-[hsl(var(--destructive))] uppercase">{errors.service}</span>}
           </div>
-          <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Enlace de destino</span>{selected && <span className="terminal-label text-[8px]">Solo {selected.platform}</span>}</div><div className="relative"><Link2 size={15} className="absolute left-3 top-3 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-order-link" value={link} onChange={(event) => { setLink(event.target.value); setErrors((current) => ({ ...current, link: undefined })); }} placeholder={selected ? `https://${selected.platform.toLowerCase()}.com/...` : 'Selecciona un servicio primero'} className={`w-full rounded-sm border bg-[hsl(var(--background))] py-2.5 pl-9 pr-3 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.link || liveLinkError ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} /></div>{(errors.link || liveLinkError) && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.link || liveLinkError}</span>}{selected && !liveLinkError && link.trim() && <span className="mt-1.5 block text-xs text-[hsl(var(--primary))]">Enlace compatible con {selected.platform}.</span>}</label>
-          <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Cantidad</span>{selected && <span className="mono text-[10px] text-[hsl(var(--muted-foreground))]">min {selected.minQuantity.toLocaleString('es-ES')} / max {selected.maxQuantity.toLocaleString('es-ES')}</span>}</div><input data-testid="input-order-quantity" type="number" min={selected?.minQuantity ?? 1} max={selected?.maxQuantity} value={quantity} onChange={(event) => { setQuantity(event.target.value); setErrors((current) => ({ ...current, quantity: undefined })); }} placeholder="0" className={`w-full rounded-sm border bg-[hsl(var(--background))] px-3 py-2.5 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.quantity ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} />{errors.quantity && <span className="mt-1.5 block text-xs text-[hsl(var(--destructive))]">{errors.quantity}</span>}</label>
+          <label className="block uppercase"><div className="mb-2 flex items-center justify-between uppercase"><span className="terminal-label uppercase">Enlace de destino</span>{selected && <span className="terminal-label text-[8px] uppercase">Solo {selected.platform}</span>}</div><div className="relative uppercase"><Link2 size={15} className="absolute left-3 top-3 text-[hsl(var(--muted-foreground))] uppercase" /><input data-testid="input-order-link" value={link} onChange={(event) => { setLink(event.target.value); setErrors((current) => ({ ...current, link: undefined })); }} placeholder={selected ? `https://${selected.platform.toLowerCase()}.com/...` : 'Selecciona un servicio primero'} className={`w-full rounded-sm border bg-[hsl(var(--background))] py-2.5 pl-9 pr-3 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.link || liveLinkError ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} /></div>{(errors.link || liveLinkError) && <span className="mt-1.5 block text-[10px] text-[hsl(var(--destructive))]">{errors.link || liveLinkError}</span>}{selected && !liveLinkError && link.trim() && <span className="mt-1.5 block text-[10px] text-[hsl(var(--primary))] uppercase">Enlace compatible con {selected.platform}.</span>}</label>
+          <label className="block uppercase"><div className="mb-2 flex items-center justify-between uppercase"><span className="terminal-label uppercase">Cantidad</span>{selected && <span className="mono text-[10px] text-[hsl(var(--muted-foreground))] uppercase">min {selected.minQuantity.toLocaleString('es-ES')} / max {selected.maxQuantity.toLocaleString('es-ES')}</span>}</div><input data-testid="input-order-quantity" type="number" min={selected?.minQuantity ?? 1} max={selected?.maxQuantity} value={quantity} onChange={(event) => { setQuantity(event.target.value); setErrors((current) => ({ ...current, quantity: undefined })); }} placeholder="0" className={`w-full rounded-sm border bg-[hsl(var(--background))] px-3 py-2.5 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))] ${errors.quantity ? 'border-[hsl(var(--destructive))]' : 'border-[hsl(var(--input))]'}`} />{errors.quantity && <span className="mt-1.5 block text-[10px] text-[hsl(var(--destructive))]">{errors.quantity}</span>}</label>
         </div>
-        {submitError && <p className="mt-5 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-sm text-[hsl(var(--destructive))] rounded-sm">{submitError}</p>}
-        {success && <p className="mt-5 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-sm text-[hsl(var(--accent))] rounded-sm">{success}</p>}
-        <div className="mt-6 flex justify-end"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
+        {submitError && <p className="mt-3 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-[11px] text-[hsl(var(--destructive))] rounded-sm uppercase">{submitError}</p>}
+        {success && <p className="mt-3 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-[11px] text-[hsl(var(--accent))] rounded-sm uppercase">{success}</p>}
+        <div className="mt-3 flex justify-end uppercase"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
       </form>
-       <aside className="terminal-panel h-fit p-5"><p className="terminal-label">Vista previa</p>{selected ? <div className="mt-5"><div className="mb-4 flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{selected.name}</h3><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={15} className="text-[hsl(var(--primary))]" /></div><p className="text-sm leading-6 text-[hsl(var(--muted-foreground))]">{selected.description}</p><div className="mt-5 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))]"><div className="bg-[hsl(var(--card))] p-3"><p className="terminal-label text-[8px]">Precio directo / 1K</p><p className="mono mt-2 text-xs font-medium text-[hsl(var(--primary))]">{formatUsd(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-3"><p className="terminal-label text-[8px]">Coste estimado</p><p className="mono mt-2 text-xs font-medium text-[hsl(var(--accent))]">{quantity ? formatUsd(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-3"><Clock3 size={14} className="mb-2 text-[hsl(var(--primary))]" /><p className="terminal-label text-[8px]">Tiempo estimado</p><p className="mt-1 text-xs font-medium">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-3"><RefreshCw size={14} className="mb-2 text-[hsl(var(--accent))]" /><p className="terminal-label text-[8px]">Recarga</p><p className="mt-1 text-xs font-medium">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[205px] flex-col items-center justify-center text-center"><PackageCheck size={18} className="mb-3 text-[hsl(var(--muted-foreground))]" /><p className="text-sm font-semibold">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
+       <aside className="terminal-panel h-fit p-3 uppercase"><p className="terminal-label uppercase">Vista previa</p>{selected ? <div className="mt-3 uppercase"><div className="mb-2 flex items-start justify-between gap-3 uppercase"><div><h3 className="text-[11px] font-bold uppercase">{selected.name}</h3><p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={15} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-3 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-3 uppercase"><p className="terminal-label text-[8px] uppercase">Precio directo / 1K</p><p className="mono mt-2 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatUsd(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-3 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-2 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatUsd(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-3 uppercase"><Clock3 size={14} className="mb-2 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-1 text-[10px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-3 uppercase"><RefreshCw size={14} className="mb-2 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-1 text-[10px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[205px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={18} className="mb-3 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[11px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
   </div>;
 }
@@ -610,13 +627,13 @@ function ReconciliationCard({ order, onResolved }: { order: Order; onResolved: (
       setIsResolving(false);
     }
   };
-  return <section className="terminal-panel border-[hsl(var(--primary)/.4)] p-4">
-    <p className="terminal-label text-[hsl(var(--primary))]">Verificacion requerida</p>
-    <h3 className="mt-1 text-sm font-semibold">{order.serviceName}</h3>
-    <p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">La respuesta del proveedor fue ambigua. No se enviara otro pedido ni se liberara credito hasta que confirmes el resultado.</p>
-    <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={providerOrderId} onChange={(event) => setProviderOrderId(event.target.value)} placeholder="ID de pedido del proveedor" className="min-w-0 flex-1 rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2 text-xs outline-none focus:border-[hsl(var(--primary))]" /><button type="button" onClick={() => void resolve('attach')} disabled={isResolving || !providerOrderId.trim()} className="rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] disabled:opacity-50">Adjuntar ID</button></div>
+  return <section className="terminal-panel border-[hsl(var(--primary)/.4)] p-4 uppercase">
+    <p className="terminal-label text-[hsl(var(--primary))] uppercase">Verificacion requerida</p>
+    <h3 className="mt-1 text-[11px] font-bold uppercase">{order.serviceName}</h3>
+    <p className="mt-2 text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">La respuesta del proveedor fue ambigua. No se enviara otro pedido ni se liberara credito hasta que confirmes el resultado.</p>
+    <div className="mt-3 flex flex-col gap-2 sm:flex-row uppercase"><input value={providerOrderId} onChange={(event) => setProviderOrderId(event.target.value)} placeholder="ID de pedido del proveedor" className="min-w-0 flex-1 rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2 text-[10px] outline-none focus:border-[hsl(var(--primary))]" /><button type="button" onClick={() => void resolve('attach')} disabled={isResolving || !providerOrderId.trim()} className="rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] disabled:opacity-50">Adjuntar ID</button></div>
     <button type="button" onClick={() => void resolve('release')} disabled={isResolving} className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))] disabled:opacity-50">Confirmar que no existe y liberar reserva</button>
-    {error && <p className="mt-2 text-xs text-[hsl(var(--destructive))]">{error}</p>}
+    {error && <p className="mt-2 text-[10px] text-[hsl(var(--destructive))] uppercase">{error}</p>}
   </section>;
 }
 
@@ -632,11 +649,11 @@ function ActiveOrdersPage() {
   }, []);
   if (isLoading) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automaticamente las metricas operativas de cada solicitud." /><LoadingRows count={5} /></>;
   if (isError || !orders) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automaticamente las metricas operativas de cada solicitud." /><ErrorState onRetry={() => void refetch()} /></>;
-  return <div className="fade-up">
+  return <div className="fade-up uppercase">
     <OrderSyncManager orders={active} />
     <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automaticamente cantidad, inicio, enviados, faltantes y estado real de cada pedido." />
-    {reservations.length > 0 && <div className="mb-4 space-y-3">{reservations.map((order) => <ReconciliationCard key={order.id} order={order} onResolved={() => { void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); }} />)}</div>}
-    <section className="terminal-panel overflow-hidden flex flex-col max-h-[700px]"><div className="grid shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-5 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px]"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right">Enviados / total</span><span className="md:text-right">Actualizacion</span></div><div className="overflow-y-auto">{active.length ? active.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-5"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecera en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</div></section>
+    {reservations.length > 0 && <div className="mb-2 space-y-3 uppercase">{reservations.map((order) => <ReconciliationCard key={order.id} order={order} onResolved={() => { void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); }} />)}</div>}
+    <section className="terminal-panel overflow-hidden flex flex-col max-h-[700px] uppercase"><div className="grid shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] uppercase"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right uppercase">Enviados / total</span><span className="md:text-right uppercase">Actualizacion</span></div><div className="overflow-y-auto uppercase">{active.length ? active.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-3 uppercase"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecera en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-3 inline-flex items-center gap-2 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</div></section>
       <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-bold"><RefreshCw size={13} /> Sincronizacion activa cada 15s</div>
   </div>;
 }
@@ -648,7 +665,7 @@ function LegacyHistoryPage() {
   const visibleOrders = useMemo(() => (orders ?? []).filter((order) => filter === 'todos' || isCompleted(order)).filter((order) => `${order.id} ${order.serviceName} ${order.platform} ${order.link}`.toLowerCase().includes(search.toLowerCase())), [orders, filter, search]);
   if (isLoading) return <><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><LoadingRows count={5} /></>;
   if (isError || !orders) return <><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><ErrorState onRetry={() => void refetch()} /></>;
-  return <div className="fade-up"><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta todos tus pedidos y filtra los que ya fueron completados." /><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div className="flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1"><button data-testid="button-filter-all" onClick={() => setFilter('todos')} className={`min-h-10 min-w-[96px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'todos' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Todos</button><button data-testid="button-filter-completed" onClick={() => setFilter('completado')} className={`min-h-10 min-w-[128px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'completado' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Completados</button></div><div className="relative sm:w-64"><Search size={14} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-search-history" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar pedidos..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-xs outline-none transition placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div></div><section className="terminal-panel overflow-hidden max-h-[700px] overflow-y-auto">{visibleOrders.length ? visibleOrders.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_120px_150px] md:items-center"><div className="min-w-0"><div className="flex items-center gap-2"><span className="mono text-[11px] text-[hsl(var(--muted-foreground))]">#{shortId(order.id)}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-sm font-semibold">{order.serviceName}</p><p className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.platform} · {order.contentType}</p></div><div className="flex min-w-0 items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline"><ExternalLink size={13} /></a></div><div className="text-sm md:text-right"><span className="mono font-medium">{order.quantity.toLocaleString('es-ES')}</span><span className="ml-1 text-[10px] uppercase font-bold tracking-wider text-[hsl(var(--muted-foreground))]">Unidades</span><p className="mt-0.5 mono text-[10px] text-[hsl(var(--primary))]">{order.costUsd != null ? `$${order.costUsd.toFixed(2)}` : '—'}</p></div><div className="flex items-center justify-between gap-2 md:justify-end"><div className="text-right"><p className="text-xs font-semibold">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px]">Creado</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))]"><Copy size={14} /></button></div></div>) : <div className="p-5"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa busqueda.' : filter === 'completado' ? 'Todavia no hay pedidos completados.' : 'Tus pedidos apareceran aqui automaticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-5 text-sm font-bold text-[hsl(var(--primary))]">Limpiar busqueda</button> : undefined} /></div>}</section></div>;
+  return <div className="fade-up uppercase"><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta todos tus pedidos y filtra los que ya fueron completados." /><div className="mb-2 flex flex-col justify-between gap-3 sm:flex-row uppercase"><div className="flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 uppercase"><button data-testid="button-filter-all" onClick={() => setFilter('todos')} className={`min-h-10 min-w-[96px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'todos' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Todos</button><button data-testid="button-filter-completed" onClick={() => setFilter('completado')} className={`min-h-10 min-w-[128px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'completado' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Completados</button></div><div className="relative sm:w-64 uppercase"><Search size={14} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))] uppercase" /><input data-testid="input-search-history" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar pedidos..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-[10px] outline-none transition placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div></div><section className="terminal-panel overflow-hidden max-h-[700px] overflow-y-auto uppercase">{visibleOrders.length ? visibleOrders.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-3 py-2 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_120px_150px] md:items-center uppercase"><div className="min-w-0 uppercase"><div className="flex items-center gap-2 uppercase"><span className="mono text-[11px] text-[hsl(var(--muted-foreground))] uppercase">#{shortId(order.id)}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-[11px] font-bold uppercase">{order.serviceName}</p><p className="mt-0.5 truncate text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{order.platform} · {order.contentType}</p></div><div className="flex min-w-0 items-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))] uppercase"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline uppercase"><ExternalLink size={13} /></a></div><div className="text-[11px] md:text-right uppercase"><span className="mono font-bold uppercase">{order.quantity.toLocaleString('es-ES')}</span><span className="ml-1 text-[10px] uppercase font-bold tracking-wider text-[hsl(var(--muted-foreground))]">Unidades</span><p className="mt-0.5 mono text-[10px] text-[hsl(var(--primary))] uppercase">{order.costUsd != null ? `$${order.costUsd.toFixed(2)}` : '—'}</p></div><div className="flex items-center justify-between gap-2 md:justify-end uppercase"><div className="text-right uppercase"><p className="text-[10px] font-bold uppercase">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px] uppercase">Creado</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))] uppercase"><Copy size={14} /></button></div></div>) : <div className="p-3 uppercase"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa busqueda.' : filter === 'completado' ? 'Todavia no hay pedidos completados.' : 'Tus pedidos apareceran aqui automaticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-3 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Limpiar busqueda</button> : undefined} /></div>}</section></div>;
 }
 
 function HistoryPage() {
@@ -664,25 +681,25 @@ function HistoryPage() {
   useEffect(() => setPage(1), [filter, search]);
   if (isLoading) return <><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><LoadingRows count={5} /></>;
   if (isError || !orders) return <><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><ErrorState onRetry={() => void refetch()} /></>;
-  return <div className="fade-up">
+  return <div className="fade-up uppercase">
     <PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta todos tus pedidos, su coste directo y duracion real." />
-    <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row">
-      <div className="flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1">
+    <div className="mb-2 flex flex-col justify-between gap-3 sm:flex-row uppercase">
+      <div className="flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 uppercase">
         <button data-testid="button-filter-all" onClick={() => setFilter('todos')} className={`min-h-9 min-w-[88px] rounded-sm px-3 py-2 text-[10px] font-bold uppercase tracking-[.08em] ${filter === 'todos' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Todos</button>
         <button data-testid="button-filter-completed" onClick={() => setFilter('completado')} className={`min-h-9 min-w-[112px] rounded-sm px-3 py-2 text-[10px] font-bold uppercase tracking-[.08em] ${filter === 'completado' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Completados</button>
       </div>
-      <div className="relative sm:w-72"><Search size={14} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-search-history" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por servicio o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-xs outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div>
+      <div className="relative sm:w-72 uppercase"><Search size={14} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))] uppercase" /><input data-testid="input-search-history" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por servicio o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-[10px] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div>
     </div>
-    <section className="terminal-panel overflow-hidden">
-      <div className="max-h-[650px] overflow-y-auto">
-        {pageOrders.length ? pageOrders.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_130px_150px] md:items-center">
-          <div className="min-w-0"><div className="flex items-center gap-2"><span className="mono text-[10px] text-[hsl(var(--muted-foreground))]">#{shortId(order.id)} · SVC:{order.serviceId}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-sm font-semibold">{order.serviceName}</p><p className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.platform} · {order.contentType}</p></div>
-          <div className="flex min-w-0 items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline"><ExternalLink size={13} /></a></div>
-          <div className="text-sm md:text-right"><p className="mono font-medium">{formatUsd(order.costUsd)}</p><p className="mt-1 terminal-label text-[8px]">{order.durationMinutes == null ? 'Duracion pendiente' : `Duracion ${order.durationMinutes} min`}</p></div>
-          <div className="flex items-center justify-between gap-2 md:justify-end"><div className="text-right"><p className="text-xs font-semibold">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px]">{order.quantity.toLocaleString('es-ES')} unidades</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))]"><Copy size={14} /></button></div>
-        </div>) : <div className="p-5"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa busqueda.' : filter === 'completado' ? 'Todavia no hay pedidos completados.' : 'Tus pedidos apareceran aqui automaticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-5 text-sm font-bold text-[hsl(var(--primary))]">Limpiar busqueda</button> : undefined} /></div>}
+    <section className="terminal-panel overflow-hidden uppercase">
+      <div className="max-h-[650px] overflow-y-auto uppercase">
+        {pageOrders.length ? pageOrders.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-3 py-2 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_130px_150px] md:items-center uppercase">
+          <div className="min-w-0 uppercase"><div className="flex items-center gap-2 uppercase"><span className="mono text-[10px] text-[hsl(var(--muted-foreground))] uppercase">#{shortId(order.id)} · SVC:{order.serviceId}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-[11px] font-bold uppercase">{order.serviceName}</p><p className="mt-0.5 truncate text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{order.platform} · {order.contentType}</p></div>
+          <div className="flex min-w-0 items-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))] uppercase"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline uppercase"><ExternalLink size={13} /></a></div>
+          <div className="text-[11px] md:text-right uppercase"><p className="mono font-bold uppercase">{formatUsd(order.costUsd)}</p><p className="mt-1 terminal-label text-[8px] uppercase">{order.durationMinutes == null ? 'Duracion pendiente' : `Duracion ${order.durationMinutes} min`}</p></div>
+          <div className="flex items-center justify-between gap-2 md:justify-end uppercase"><div className="text-right uppercase"><p className="text-[10px] font-bold uppercase">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px] uppercase">{order.quantity.toLocaleString('es-ES')} unidades</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))] uppercase"><Copy size={14} /></button></div>
+        </div>) : <div className="p-3 uppercase"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa busqueda.' : filter === 'completado' ? 'Todavia no hay pedidos completados.' : 'Tus pedidos apareceran aqui automaticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-3 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Limpiar busqueda</button> : undefined} /></div>}
       </div>
-      {matchingOrders.length > 8 && <div className="flex items-center justify-between border-t border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-4 py-3"><span className="terminal-label text-[8px]">Pagina {page} / {pages} · {matchingOrders.length} pedidos</span><div className="flex gap-1"><button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40">Anterior</button><button type="button" disabled={page === pages} onClick={() => setPage((current) => Math.min(pages, current + 1))} className="rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40">Siguiente</button></div></div>}
+      {matchingOrders.length > 8 && <div className="flex items-center justify-between border-t border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-4 py-3 uppercase"><span className="terminal-label text-[8px] uppercase">Pagina {page} / {pages} · {matchingOrders.length} pedidos</span><div className="flex gap-1 uppercase"><button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40">Anterior</button><button type="button" disabled={page === pages} onClick={() => setPage((current) => Math.min(pages, current + 1))} className="rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40">Siguiente</button></div></div>}
     </section>
   </div>;
 }
@@ -701,39 +718,39 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
     login.mutate({ data: { email: email.trim(), password } }, { onSuccess: (user) => { queryClient.setQueryData(getGetCurrentUserQueryKey(), user); void queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); setLocation('/dashboard'); }, onError: () => setError('No hemos podido validar tus credenciales. Revisa los datos e intentalo de nuevo.') });
   };
   return (
-    <div className="grid min-h-[100dvh] bg-[hsl(var(--background))] lg:grid-cols-[1.2fr_.8fr]">
-      <section className="terminal-grid relative hidden overflow-hidden border-r border-[hsl(var(--border))] p-10 lg:flex lg:flex-col">
-        <div className="relative flex items-center gap-3 border-b border-[hsl(var(--border))] pb-5">
-          <span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-          <p className="mono text-xs font-medium uppercase tracking-[.15em]">AMD // Social delivery</p>
-          <span className="ml-auto terminal-label">Private workspace</span>
+    <div className="grid min-h-[100dvh] bg-[hsl(var(--background))] lg:grid-cols-[1.2fr_.8fr] uppercase">
+      <section className="terminal-grid relative hidden overflow-hidden border-r border-[hsl(var(--border))] p-6 lg:flex lg:flex-col uppercase">
+        <div className="relative flex items-center gap-3 border-b border-[hsl(var(--border))] pb-5 uppercase">
+          <span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] uppercase" />
+          <p className="mono text-[10px] font-bold uppercase tracking-[.15em]">AMD // Social delivery</p>
+          <span className="ml-auto terminal-label uppercase">Private workspace</span>
         </div>
-        <div className="relative my-auto max-w-lg">
-          <p className="terminal-label text-[hsl(var(--primary))]">Control plane / 01</p>
-          <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-[-.04em]">Automatizacion social bajo control.</h1>
-          <p className="mt-5 max-w-md text-sm leading-7 text-[hsl(var(--muted-foreground))]">Gestiona entregas, consulta estados y opera tus servicios desde una interfaz privada diseñada para ritmo y precision.</p>
-          <div className="terminal-panel mt-10 grid grid-cols-3 divide-x divide-[hsl(var(--border))]">
-            {[['STATUS', 'ONLINE'], ['ENGINE', 'READY'], ['ACCESS', 'PRIVATE']].map(([label, value]) => <div key={label} className="p-4"><p className="terminal-label text-[9px]">{label}</p><p className="mono mt-2 text-xs text-[hsl(var(--foreground))]"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" />{value}</p></div>)}
+        <div className="relative my-auto max-w-lg uppercase">
+          <p className="terminal-label text-[hsl(var(--primary))] uppercase">Control plane / 01</p>
+          <h1 className="mt-4 text-[20px] font-bold leading-tight tracking-[-.04em] uppercase">Automatizacion social bajo control.</h1>
+          <p className="mt-3 max-w-md text-[11px] leading-7 text-[hsl(var(--muted-foreground))] uppercase">Gestiona entregas, consulta estados y opera tus servicios desde una interfaz privada disenada para ritmo y precision.</p>
+          <div className="terminal-panel mt-10 grid grid-cols-3 divide-x divide-[hsl(var(--border))] uppercase">
+            {[['STATUS', 'ONLINE'], ['ENGINE', 'READY'], ['ACCESS', 'PRIVATE']].map(([label, value]) => <div key={label} className="p-4 uppercase"><p className="terminal-label text-[9px] uppercase">{label}</p><p className="mono mt-2 text-[10px] text-[hsl(var(--foreground))] uppercase"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] uppercase" />{value}</p></div>)}
           </div>
         </div>
-        <p className="relative terminal-label">AMD Marketing Digital // Restricted access</p>
+        <p className="relative terminal-label uppercase">AMD Marketing Digital // Restricted access</p>
       </section>
-      <section className="flex items-center justify-center p-5 sm:p-10">
-        <div className="w-full max-w-[390px] fade-up">
-          <div className="mb-7 flex items-center justify-between border-b border-[hsl(var(--border))] pb-4">
-            <p className="mono text-xs font-semibold uppercase tracking-[.16em]">Acceso privado</p>
-            <span className="terminal-label text-[hsl(var(--primary))]">v1.0</span>
+      <section className="flex items-center justify-center p-3 sm:p-6 uppercase">
+        <div className="w-full max-w-[390px] fade-up uppercase">
+          <div className="mb-7 flex items-center justify-between border-b border-[hsl(var(--border))] pb-4 uppercase">
+            <p className="mono text-[10px] font-bold uppercase tracking-[.16em]">Acceso privado</p>
+            <span className="terminal-label text-[hsl(var(--primary))] uppercase">v1.0</span>
           </div>
-          <p className="terminal-label text-[hsl(var(--primary))]">Autenticacion</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-[-.035em]">Inicia sesion</h2>
-          <p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Identificate para abrir tu espacio de operaciones.</p>
-          <form className="terminal-panel mt-7 space-y-5 p-5" onSubmit={(event) => { event.preventDefault(); submit(); }}>
-            <label className="block"><span className="terminal-label mb-2 block">Correo electronico</span><input data-testid="input-login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="email" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /></label>
-            <label className="block"><div className="mb-2 flex items-center justify-between"><span className="terminal-label">Contrasena</span><span className="terminal-label text-[9px]">Sin registro</span></div><input data-testid="input-login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 text-sm outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /></label>
-            {error && <p data-testid="status-login-error" className="border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] p-3 text-xs leading-5 text-[hsl(var(--destructive))] rounded-sm">{error}</p>}
-            <button type="submit" formNoValidate data-testid="button-login" disabled={login.isPending} className="flex w-full items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{login.isPending ? <LoaderCircle size={15} className="animate-spin" /> : <ArrowRight size={15} />}{login.isPending ? 'Validando…' : 'Entrar al panel'}</button>
+          <p className="terminal-label text-[hsl(var(--primary))] uppercase">Autenticacion</p>
+          <h2 className="mt-3 text-[16px] font-bold tracking-[-.035em] uppercase">Inicia sesion</h2>
+          <p className="mt-2 text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">Identificate para abrir tu espacio de operaciones.</p>
+          <form className="terminal-panel mt-7 space-y-5 p-3 uppercase" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+            <label className="block uppercase"><span className="terminal-label mb-2 block uppercase">Correo electronico</span><input data-testid="input-login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="email" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /></label>
+            <label className="block uppercase"><div className="mb-2 flex items-center justify-between uppercase"><span className="terminal-label uppercase">Contrasena</span><span className="terminal-label text-[9px] uppercase">Sin registro</span></div><input data-testid="input-login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /></label>
+            {error && <p data-testid="status-login-error" className="border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] p-3 text-[10px] leading-5 text-[hsl(var(--destructive))] rounded-sm uppercase">{error}</p>}
+            <button type="submit" formNoValidate data-testid="button-login" disabled={login.isPending} className="flex w-full items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{login.isPending ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <ArrowRight size={15} />}{login.isPending ? 'Validando…' : 'Entrar al panel'}</button>
           </form>
-          <div className="mt-5 flex items-start gap-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><ShieldCheck size={14} className="mt-0.5 shrink-0 text-[hsl(var(--primary))]" />Sesion protegida. Este acceso esta reservado para personal autorizado.</div>
+          <div className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] uppercase"><ShieldCheck size={14} className="mt-0.5 shrink-0 text-[hsl(var(--primary))] uppercase" />Sesion protegida. Este acceso esta reservado para personal autorizado.</div>
         </div>
       </section>
     </div>
@@ -741,7 +758,7 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
 }
 
 function BootScreen() {
-  return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))]"><div className="w-52"><div className="skeleton mb-3 h-8 w-10 rounded-sm" /><div className="skeleton mb-2 h-3 w-full rounded-sm" /><div className="skeleton h-3 w-2/3 rounded-sm" /></div></div>;
+  return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] uppercase"><div className="w-52 uppercase"><div className="skeleton mb-3 h-8 w-10 rounded-sm uppercase" /><div className="skeleton mb-2 h-3 w-full rounded-sm uppercase" /><div className="skeleton h-3 w-2/3 rounded-sm uppercase" /></div></div>;
 }
 
 function Router() {
