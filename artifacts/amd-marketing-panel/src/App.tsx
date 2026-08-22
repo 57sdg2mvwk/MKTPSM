@@ -26,7 +26,6 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  X,
   Zap,
 } from 'lucide-react';
 import {
@@ -39,7 +38,6 @@ import {
   useGetServices,
   useLogin,
   useLogout,
-  useRefillOrder,
   useSyncOrderStatus,
 } from '@workspace/api-client-react';
 import type { CurrentUser, Order, Service } from '@workspace/api-client-react';
@@ -74,6 +72,28 @@ function formatDate(value: string | null | undefined) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date).replace('.', '');
+}
+
+function liveElapsed(value: string, now: number) {
+  const createdAt = new Date(value).getTime();
+  if (Number.isNaN(createdAt)) return 'Tiempo no disponible';
+  const seconds = Math.max(0, Math.floor((now - createdAt) / 1000));
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ${minutes % 60} min`;
+  return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+}
+
+function lastUpdatedLabel(value: string | null, now: number) {
+  if (!value) return 'Esperando actualización';
+  const updatedAt = new Date(value).getTime();
+  if (Number.isNaN(updatedAt)) return 'Sin actualización';
+  const seconds = Math.max(0, Math.floor((now - updatedAt) / 1000));
+  if (seconds < 10) return 'Actualizado ahora';
+  if (seconds < 60) return `Actualizado hace ${seconds} s`;
+  return `Actualizado hace ${Math.floor(seconds / 60)} min`;
 }
 
 function shortId(id: string) {
@@ -178,7 +198,7 @@ function StatusChip({ status }: { status: string }) {
   return <span data-testid={`status-order-${status}`} className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${styles[tone]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{statusLabel(status)}</span>;
 }
 
-function OrderLine({ order, onSync, onRefill, syncing }: { order: Order; onSync?: (id: string) => void; onRefill?: (id: string) => void; syncing?: boolean }) {
+function OrderLine({ order, now }: { order: Order; now: number }) {
   return (
     <div data-testid={`row-order-${order.id}`} className="group grid gap-4 border-b border-[hsl(var(--border)/.7)] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center">
       <div className="min-w-0">
@@ -200,15 +220,10 @@ function OrderLine({ order, onSync, onRefill, syncing }: { order: Order; onSync?
       </div>
       <div className="text-sm md:text-right">
         <p className="mono font-medium">{order.quantity.toLocaleString('es-ES')}</p>
-        <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.elapsed}</p>
+        <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{liveElapsed(order.createdAt, now)}</p>
       </div>
-      <div className="flex items-center justify-between gap-2 md:justify-end">
-        {order.refillAvailable && onRefill ? <button data-testid={`button-refill-${order.id}`} onClick={() => onRefill(order.id)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/.1)]">Solicitar recarga</button> : <span />}
-        {onSync && (
-          <button data-testid={`button-sync-${order.id}`} onClick={() => onSync(order.id)} disabled={syncing} title="Sincronizar estado" className="grid h-8 w-8 place-items-center rounded-lg border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))] disabled:opacity-50">
-            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-          </button>
-        )}
+      <div className="flex items-center justify-end gap-2 text-right">
+        <span className="terminal-label text-[8px]">{lastUpdatedLabel(order.lastSyncedAt, now)}</span>
       </div>
     </div>
   );
@@ -293,7 +308,7 @@ function DashboardPage() {
   return <div className="fade-up"><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rápida del estado de tus pedidos y actividad reciente." action={<Link href="/nuevo-pedido" data-testid="link-new-order-dashboard" className="inline-flex items-center justify-center gap-2 rounded-md border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3.5 py-2 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110"><Plus size={15} /> Nuevo pedido</Link>} />
     <div className="terminal-panel mb-6 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-3">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-5`}><div className="mb-6 flex items-center justify-between"><p className="terminal-label">{label}</p><Icon size={16} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-4"><p data-testid={`text-stat-${label}`} className="mono text-3xl font-medium tracking-[-.08em]">{value}</p><p className="pb-1 text-right text-[10px] text-[hsl(var(--muted-foreground))]">{detail}</p></div></div>)}</div>
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
-      <section className="terminal-panel overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-4"><div><p className="terminal-label">Actividad</p><h3 className="mt-1 text-sm font-semibold">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={12} /></Link></div>{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} />) : <div className="p-5"><EmptyState icon={PackageCheck} title="Aún no hay actividad" description="Los pedidos nuevos aparecerán aquí en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear primer pedido <ArrowRight size={14} /></Link>} /></div>}</section>
+     <section className="terminal-panel overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-4"><div><p className="terminal-label">Actividad</p><h3 className="mt-1 text-sm font-semibold">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={12} /></Link></div>{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-5"><EmptyState icon={PackageCheck} title="Aún no hay actividad" description="Los pedidos nuevos aparecerán aquí en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear primer pedido <ArrowRight size={14} /></Link>} /></div>}</section>
       <section className="terminal-panel p-5"><div className="mb-5 flex items-start justify-between"><div><p className="terminal-label">Estado del sistema</p><h3 className="mt-1 text-sm font-semibold">Sincronización</h3></div><Zap size={16} className="text-[hsl(var(--primary))]" /></div><div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-4"><div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--primary))]"><span className="h-1.5 w-1.5 rounded-full bg-current" />Operativo</div><p data-testid="text-last-sync" className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Última sincronización<br /><span className="mono text-[hsl(var(--foreground))]">{formatDate(data.lastSyncAt)}</span></p></div><div className="mt-5 space-y-3 border-t border-[hsl(var(--border))] pt-5"><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Pedidos registrados</span><span className="mono font-medium">{data.totalOrders}</span></div><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Tasa de finalización</span><span className="mono font-medium">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div></div></section>
     </div>
   </div>;
@@ -377,28 +392,45 @@ function NewOrderPage() {
 function ActiveOrdersPage() {
   const { data: orders, isLoading, isError, refetch } = useGetOrders();
   const sync = useSyncOrderStatus();
-  const refill = useRefillOrder();
   const queryClient = useQueryClient();
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
+  const [now, setNow] = useState(() => Date.now());
   const active = useMemo(() => orders?.filter((order) => !isCompleted(order)) ?? [], [orders]);
-  const syncOrder = (id: string, automatic = false) => { setSyncingId(id); sync.mutate({ data: { orderId: id } }, { onSuccess: () => { if (!automatic) setNotice('Estado actualizado correctamente.'); void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); setSyncingId(null); }, onError: () => setSyncingId(null) }); };
-  const refillOrder = (id: string) => { if (!window.confirm('¿Quieres solicitar una recarga para este pedido?')) return; refill.mutate({ data: { orderId: id } }, { onSuccess: () => { setNotice('Solicitud de recarga enviada.'); void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); } }); };
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(clock);
+  }, []);
   const activeOrderIds = active.map((order) => order.id).join(',');
   useEffect(() => {
-    if (!activeOrderIds) return;
-    const syncActiveOrders = () => activeOrderIds.split(',').forEach((id) => syncOrder(id, true));
-    syncActiveOrders();
-    const interval = window.setInterval(syncActiveOrders, 30_000);
-    return () => window.clearInterval(interval);
-  }, [activeOrderIds]);
+    if (!activeOrderIds) return undefined;
+    let running = false;
+    const syncActiveOrders = async () => {
+      if (running) return;
+      running = true;
+      try {
+        for (const id of activeOrderIds.split(',')) {
+          await sync.mutateAsync({ data: { orderId: id } });
+          await queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() });
+          await queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+        }
+      } catch {
+        // The next interval retries transient provider or network errors.
+      } finally {
+        running = false;
+      }
+    };
+    const interval = window.setInterval(() => void syncActiveOrders(), 15_000);
+    const initialSync = window.setTimeout(() => void syncActiveOrders(), 1_000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(initialSync);
+    };
+  }, [activeOrderIds, queryClient]);
   if (isLoading) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." /><LoadingRows count={5} /></>;
   if (isError || !orders) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." /><ErrorState onRetry={() => void refetch()} /></>;
   return <div className="fade-up">
-    <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." action={<button data-testid="button-sync-all" onClick={() => active.forEach((order) => syncOrder(order.id))} disabled={sync.isPending || !active.length} className="inline-flex items-center justify-center gap-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3.5 py-2 text-xs font-bold transition hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))] disabled:opacity-50"><RefreshCw size={14} className={sync.isPending ? 'animate-spin' : ''} /> Sincronizar todo</button>} />
-    {notice && <div data-testid="status-operation" className="mb-4 flex items-center gap-2 border border-[hsl(var(--accent)/.3)] bg-[hsl(var(--accent)/.07)] px-4 py-3 text-xs text-[hsl(var(--accent))]"><Check size={15} />{notice}<button data-testid="button-dismiss-notice" onClick={() => setNotice('')} className="ml-auto p-1"><X size={14} /></button></div>}
-    <section className="terminal-panel overflow-hidden"><div className="grid border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-5 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px]"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right">Cantidad</span><span /></div>{active.length ? active.map((order) => <OrderLine key={order.id} order={order} onSync={syncOrder} onRefill={refillOrder} syncing={syncingId === order.id} />) : <div className="p-5"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecerá en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</section>
-     <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><RefreshCw size={13} /> Sincronización automática cada 30 s. También puedes actualizar manualmente.</div>
+    <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automáticamente el avance y el tiempo transcurrido de cada pedido." />
+    <section className="terminal-panel overflow-hidden"><div className="grid border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-5 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px]"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right">Cantidad</span><span className="md:text-right">Actualización</span></div>{active.length ? active.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-5"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecerá en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</section>
+      <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><RefreshCw size={13} /> Sincronización automática activa cada 15 s. El tiempo transcurrido se actualiza en vivo.</div>
   </div>;
 }
 
@@ -406,10 +438,10 @@ function HistoryPage() {
   const { data: orders, isLoading, isError, refetch } = useGetOrders();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todos');
-  const completed = useMemo(() => (orders ?? []).filter(isCompleted).filter((order) => filter === 'todos' || statusLabel(order.status).toLowerCase() === filter).filter((order) => `${order.id} ${order.serviceName} ${order.platform} ${order.link}`.toLowerCase().includes(search.toLowerCase())), [orders, filter, search]);
+  const visibleOrders = useMemo(() => (orders ?? []).filter((order) => filter === 'todos' || isCompleted(order)).filter((order) => `${order.id} ${order.serviceName} ${order.platform} ${order.link}`.toLowerCase().includes(search.toLowerCase())), [orders, filter, search]);
   if (isLoading) return <><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><LoadingRows count={5} /></>;
   if (isError || !orders) return <><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><ErrorState onRetry={() => void refetch()} /></>;
-  return <div className="fade-up"><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta pedidos completados y anteriores en un solo lugar." /><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div className="flex items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1"><button data-testid="button-filter-all" onClick={() => setFilter('todos')} className={`min-h-10 min-w-[96px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'todos' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Todos</button><button data-testid="button-filter-completed" onClick={() => setFilter('completado')} className={`min-h-10 min-w-[128px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'completado' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Completados</button></div><div className="relative sm:w-64"><Search size={14} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-search-history" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar pedidos..." className="w-full rounded-md border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-xs outline-none transition placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div></div><section className="terminal-panel overflow-hidden">{completed.length ? completed.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_120px_150px] md:items-center"><div className="min-w-0"><div className="flex items-center gap-2"><span className="mono text-[11px] text-[hsl(var(--muted-foreground))]">#{shortId(order.id)}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-sm font-semibold">{order.serviceName}</p><p className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.platform} · {order.contentType}</p></div><div className="flex min-w-0 items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline"><ExternalLink size={13} /></a></div><div className="text-sm md:text-right"><span className="mono font-medium">{order.quantity.toLocaleString('es-ES')}</span><span className="ml-1 text-xs text-[hsl(var(--muted-foreground))]">unidades</span></div><div className="flex items-center justify-between gap-2 md:justify-end"><div className="text-right"><p className="text-xs font-semibold">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px]">Creado</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-md border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))]"><Copy size={14} /></button></div></div>) : <div className="p-5"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa búsqueda.' : 'Los pedidos completados se archivarán aquí automáticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-5 text-sm font-bold text-[hsl(var(--primary))]">Limpiar búsqueda</button> : undefined} /></div>}</section></div>;
+  return <div className="fade-up"><PageIntro eyebrow="04 / Archivo" title="Historial" description="Consulta todos tus pedidos y filtra los que ya fueron completados." /><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row"><div className="flex items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1"><button data-testid="button-filter-all" onClick={() => setFilter('todos')} className={`min-h-10 min-w-[96px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'todos' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Todos</button><button data-testid="button-filter-completed" onClick={() => setFilter('completado')} className={`min-h-10 min-w-[128px] rounded-sm px-4 py-2 text-[11px] font-bold uppercase tracking-[.08em] transition ${filter === 'completado' ? 'bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Completados</button></div><div className="relative sm:w-64"><Search size={14} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" /><input data-testid="input-search-history" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar pedidos..." className="w-full rounded-md border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-xs outline-none transition placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div></div><section className="terminal-panel overflow-hidden">{visibleOrders.length ? visibleOrders.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_120px_150px] md:items-center"><div className="min-w-0"><div className="flex items-center gap-2"><span className="mono text-[11px] text-[hsl(var(--muted-foreground))]">#{shortId(order.id)}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-sm font-semibold">{order.serviceName}</p><p className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.platform} · {order.contentType}</p></div><div className="flex min-w-0 items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline"><ExternalLink size={13} /></a></div><div className="text-sm md:text-right"><span className="mono font-medium">{order.quantity.toLocaleString('es-ES')}</span><span className="ml-1 text-xs text-[hsl(var(--muted-foreground))]">unidades</span></div><div className="flex items-center justify-between gap-2 md:justify-end"><div className="text-right"><p className="text-xs font-semibold">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px]">Creado</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-md border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))]"><Copy size={14} /></button></div></div>) : <div className="p-5"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa búsqueda.' : filter === 'completado' ? 'Todavía no hay pedidos completados.' : 'Tus pedidos aparecerán aquí automáticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-5 text-sm font-bold text-[hsl(var(--primary))]">Limpiar búsqueda</button> : undefined} /></div>}</section></div>;
 }
 
 function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
