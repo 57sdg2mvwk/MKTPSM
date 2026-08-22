@@ -5,6 +5,7 @@ import { creditLedgerTable, creditPeriodsTable } from "@workspace/db";
 export const MONTHLY_CREDIT_MICROS = 50_000_000;
 const MEXICO_TIMEZONE = "America/Mexico_City";
 const INITIAL_CYCLE_DATE = "2026-08-22";
+const CYCLE_ANCHOR_DAY = 22;
 
 const mexicoDateParts = (date: Date) => {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -18,13 +19,37 @@ const mexicoDateParts = (date: Date) => {
 
 const mexicoMidnight = (date: string) => new Date(`${date}T00:00:00-06:00`);
 
+const daysInMonth = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+const shiftMonth = (year: number, month: number, amount: number) => {
+  const shifted = new Date(Date.UTC(year, month - 1 + amount, 1));
+  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1 };
+};
+
+const cycleDate = (year: number, month: number) => {
+  const day = Math.min(CYCLE_ANCHOR_DAY, daysInMonth(year, month));
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
+
 export const getCreditWindow = (now = new Date()) => {
-  const { year, month } = mexicoDateParts(now);
-  const periodKey = `${year}-${month}`;
-  const startsOn = periodKey === "2026-08" ? INITIAL_CYCLE_DATE : `${periodKey}-01`;
-  const resetsAt = periodKey === "2026-08"
-    ? mexicoMidnight("2026-09-01")
-    : mexicoMidnight(`${Number(month) === 12 ? Number(year) + 1 : year}-${String(Number(month) === 12 ? 1 : Number(month) + 1).padStart(2, "0")}-01`);
+  const { year: rawYear, month: rawMonth, day: rawDay } = mexicoDateParts(now);
+  const year = Number(rawYear);
+  const month = Number(rawMonth);
+  const day = Number(rawDay);
+  const initialStart = mexicoMidnight(INITIAL_CYCLE_DATE);
+  if (now < initialStart) {
+    return {
+      periodKey: INITIAL_CYCLE_DATE,
+      startsAt: initialStart,
+      resetsAt: mexicoMidnight(cycleDate(2026, 9)),
+      isActive: false,
+    };
+  }
+  const startsMonth = day >= CYCLE_ANCHOR_DAY ? { year, month } : shiftMonth(year, month, -1);
+  const nextMonth = shiftMonth(startsMonth.year, startsMonth.month, 1);
+  const startsOn = cycleDate(startsMonth.year, startsMonth.month);
+  const periodKey = startsOn;
+  const resetsAt = mexicoMidnight(cycleDate(nextMonth.year, nextMonth.month));
   const startsAt = mexicoMidnight(startsOn);
   return { periodKey, startsAt, resetsAt, isActive: now >= startsAt };
 };

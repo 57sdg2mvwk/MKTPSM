@@ -10,7 +10,7 @@ import {
   CircleHelp,
   Clock3,
   Copy,
-  DollarSign,
+  Coins,
   ExternalLink,
   Eye,
   EyeOff,
@@ -70,6 +70,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('es-ES', {
+    timeZone: 'America/Mexico_City',
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -107,9 +108,9 @@ function formatMetric(value: number | null) {
   return value == null ? '—' : value.toLocaleString('es-ES');
 }
 
-function formatUsd(value: number | null | undefined) {
+function formatCoins(value: number | null | undefined) {
   if (value == null) return '—';
-  return `$${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(value)}`;
+  return `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value * 100)} COINS`;
 }
 
 function isCompleted(order: Order) {
@@ -213,7 +214,7 @@ function StatusChip({ status }: { status: string }) {
 
 function OrderMetric({ label, value, tone = 'default', isCurrency = false }: { label: string; value: number | null; tone?: 'default' | 'primary' | 'accent', isCurrency?: boolean }) {
   const color = tone === 'primary' ? 'text-[hsl(var(--primary))]' : tone === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--foreground))]';
-  const displayValue = value == null ? '—' : isCurrency ? formatUsd(value) : value.toLocaleString('es-ES');
+  const displayValue = value == null ? '—' : isCurrency ? formatCoins(value) : value.toLocaleString('es-ES');
   return <div className="min-w-0 border-l border-[hsl(var(--border))] pl-3 first:border-l-0 first:pl-0 uppercase"><p className="terminal-label text-[8px] uppercase">{label}</p><p className={`mono mt-1 truncate text-[11px] font-medium ${color}`}>{displayValue}</p></div>;
 }
 
@@ -249,7 +250,7 @@ function OrderLine({ order, now }: { order: Order; now: number }) {
         <OrderMetric label="Inicio" value={order.startCount} />
         <OrderMetric label="Enviados" value={order.delivered} tone="accent" />
         <OrderMetric label="Faltantes" value={order.remains} tone="primary" />
-        <OrderMetric label="Coste USD" value={order.costUsd} isCurrency />
+        <OrderMetric label="Coste" value={order.costUsd} isCurrency />
       </div>
     </div>
   );
@@ -403,9 +404,9 @@ function DashboardPage() {
            <div className="mb-2 flex items-start justify-between uppercase">
             <div>
               <p className="terminal-label uppercase">Finanzas</p>
-               <h3 className="mt-0.5 text-[10px] font-bold uppercase">Credito mensual</h3>
+                <h3 className="mt-0.5 text-[10px] font-bold uppercase">Coins mensuales</h3>
             </div>
-             <div className="grid h-5 w-5 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><DollarSign size={12} /></div>
+              <div className="grid h-5 w-5 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><Coins size={12} /></div>
           </div>
            <div className="mb-2 space-y-1.5 uppercase">
              <div className="flex justify-between text-[9px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
@@ -416,12 +417,12 @@ function DashboardPage() {
               <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500 uppercase" style={{ width: `${(data.credit.spentUsd / data.credit.allowanceUsd) * 100}%` }} />
             </div>
              <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
-              <span className="text-[hsl(var(--foreground))] uppercase">{formatUsd(data.credit.spentUsd)}</span>
-              <span className="text-[hsl(var(--primary))] uppercase">{formatUsd(data.credit.availableUsd)}</span>
+              <span className="text-[hsl(var(--foreground))] uppercase">{formatCoins(data.credit.spentUsd)}</span>
+              <span className="text-[hsl(var(--primary))] uppercase">{formatCoins(data.credit.availableUsd)}</span>
             </div>
           </div>
            <div className="space-y-2 border-t border-[hsl(var(--border))] pt-3 text-[9px] uppercase">
-             <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Asignacion total</span><span className="mono font-bold uppercase">{formatUsd(data.credit.allowanceUsd)}</span></div>
+             <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Asignacion total</span><span className="mono font-bold uppercase">{formatCoins(data.credit.allowanceUsd)}</span></div>
              <div className="flex justify-between uppercase"><span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[9px] font-bold">Reinicio</span><span className="mono font-bold uppercase">{formatDate(data.credit.resetsAt)}</span></div>
           </div>
         </section>
@@ -572,7 +573,7 @@ function NewOrderPage() {
                          <div className="mt-1.5 flex flex-wrap gap-1 uppercase">
                           {service.pricePerThousandUsd != null && (
                              <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--primary))] bg-[hsl(var(--primary)/.05)] rounded-sm">
-                               {formatUsd(service.pricePerThousandUsd)} / 1K
+                               {formatCoins(service.pricePerThousandUsd)} / 1K
                             </span>
                           )}
                            {service.isDataSufficient && service.tags.map((tag) => (
@@ -607,7 +608,7 @@ function NewOrderPage() {
         {success && <p className="mt-3 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-[11px] text-[hsl(var(--accent))] rounded-sm uppercase">{success}</p>}
         <div className="mt-3 flex justify-end uppercase"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
       </form>
-        <aside className="terminal-panel h-fit p-2.5 uppercase"><p className="terminal-label text-[9px] uppercase">Vista previa</p>{selected ? <div className="mt-2 uppercase"><div className="mb-2 flex items-start justify-between gap-2 uppercase"><div><h3 className="text-[10px] font-bold uppercase">{selected.name}</h3><p className="mt-0.5 text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={14} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-2 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Precio directo / 1K</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatUsd(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatUsd(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><Clock3 size={12} className="mb-1.5 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><RefreshCw size={12} className="mb-1.5 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[175px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={17} className="mb-2 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[10px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
+        <aside className="terminal-panel h-fit p-2.5 uppercase"><p className="terminal-label text-[9px] uppercase">Vista previa</p>{selected ? <div className="mt-2 uppercase"><div className="mb-2 flex items-start justify-between gap-2 uppercase"><div><h3 className="text-[10px] font-bold uppercase">{selected.name}</h3><p className="mt-0.5 text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={14} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-2 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Precio / 1K</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatCoins(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatCoins(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><Clock3 size={12} className="mb-1.5 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><RefreshCw size={12} className="mb-1.5 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[175px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={17} className="mb-2 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[10px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
   </div>;
 }
@@ -699,7 +700,7 @@ function HistoryPage() {
         {pageOrders.length ? pageOrders.map((order) => <div key={order.id} data-testid={`row-history-${order.id}`} className="grid gap-3 border-b border-[hsl(var(--border))] px-3 py-2 transition last:border-0 hover:bg-[hsl(var(--secondary)/.45)] md:grid-cols-[minmax(190px,1.2fr)_minmax(160px,1fr)_130px_150px] md:items-center uppercase">
           <div className="min-w-0 uppercase"><div className="flex items-center gap-2 uppercase"><span className="mono text-[10px] text-[hsl(var(--muted-foreground))] uppercase">#{shortId(order.id)} · SVC:{order.serviceId}</span><StatusChip status={order.status} /></div><p className="mt-2 truncate text-[11px] font-bold uppercase">{order.serviceName}</p><p className="mt-0.5 truncate text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{order.platform} · {order.contentType}</p></div>
           <div className="flex min-w-0 items-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))] uppercase"><Link2 size={13} /><span className="truncate">{order.link}</span><a data-testid={`link-order-${order.id}`} href={order.link} target="_blank" rel="noreferrer" className="shrink-0 text-[hsl(var(--primary))] hover:underline uppercase"><ExternalLink size={13} /></a></div>
-          <div className="text-[11px] md:text-right uppercase"><p className="mono font-bold uppercase">{formatUsd(order.costUsd)}</p><p className="mt-1 terminal-label text-[8px] uppercase">{order.durationMinutes == null ? 'Duracion pendiente' : `Duracion ${order.durationMinutes} min`}</p></div>
+          <div className="text-[11px] md:text-right uppercase"><p className="mono font-bold uppercase">{formatCoins(order.costUsd)}</p><p className="mt-1 terminal-label text-[8px] uppercase">{order.durationMinutes == null ? 'Duracion pendiente' : `Duracion ${order.durationMinutes} min`}</p></div>
           <div className="flex items-center justify-between gap-2 md:justify-end uppercase"><div className="text-right uppercase"><p className="text-[10px] font-bold uppercase">{formatDate(order.createdAt)}</p><p className="mt-0.5 terminal-label text-[8px] uppercase">{order.quantity.toLocaleString('es-ES')} unidades</p></div><button data-testid={`button-copy-link-${order.id}`} onClick={() => void navigator.clipboard?.writeText(order.link)} title="Copiar enlace" className="grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/.5)] hover:text-[hsl(var(--primary))] uppercase"><Copy size={14} /></button></div>
         </div>) : <div className="p-3 uppercase"><EmptyState icon={History} title="Sin pedidos en el historial" description={search ? 'No encontramos coincidencias con esa busqueda.' : filter === 'completado' ? 'Todavia no hay pedidos completados.' : 'Tus pedidos apareceran aqui automaticamente.'} action={search ? <button data-testid="button-clear-history-search" onClick={() => setSearch('')} className="mt-3 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Limpiar busqueda</button> : undefined} /></div>}
       </div>

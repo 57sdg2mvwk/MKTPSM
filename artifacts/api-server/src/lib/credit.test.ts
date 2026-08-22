@@ -16,23 +16,32 @@ test("estimates a service cost without losing fractions below one cent", () => {
 
 test("starts the initial Mexico credit cycle on August 22, 2026", () => {
   const window = getCreditWindow(new Date("2026-08-23T06:00:00.000Z"));
-  assert.equal(window.periodKey, "2026-08");
+  assert.equal(window.periodKey, "2026-08-22");
   assert.equal(window.startsAt.toISOString(), "2026-08-22T06:00:00.000Z");
-  assert.equal(window.resetsAt.toISOString(), "2026-09-01T06:00:00.000Z");
+  assert.equal(window.resetsAt.toISOString(), "2026-09-22T06:00:00.000Z");
   assert.equal(window.isActive, true);
 });
 
 test("does not activate credit before the August 22 launch date", () => {
   const window = getCreditWindow(new Date("2026-08-21T18:00:00.000Z"));
-  assert.equal(window.periodKey, "2026-08");
+  assert.equal(window.periodKey, "2026-08-22");
   assert.equal(window.startsAt.toISOString(), "2026-08-22T06:00:00.000Z");
+  assert.equal(window.resetsAt.toISOString(), "2026-09-22T06:00:00.000Z");
   assert.equal(window.isActive, false);
 });
 
-test("resets future credit periods on the first day of Mexico month", () => {
+test("resets future credit periods on the monthly launch day in Mexico", () => {
   const window = getCreditWindow(new Date("2026-09-15T18:00:00.000Z"));
-  assert.equal(window.periodKey, "2026-09");
-  assert.equal(window.startsAt.toISOString(), "2026-09-01T06:00:00.000Z");
-  assert.equal(window.resetsAt.toISOString(), "2026-10-01T06:00:00.000Z");
+  assert.equal(window.periodKey, "2026-08-22");
+  assert.equal(window.startsAt.toISOString(), "2026-08-22T06:00:00.000Z");
+  assert.equal(window.resetsAt.toISOString(), "2026-09-22T06:00:00.000Z");
+  assert.equal(window.isActive, true);
+});
+
+test("opens the next credit period at midnight on September 22 in Mexico", () => {
+  const window = getCreditWindow(new Date("2026-09-22T06:00:00.000Z"));
+  assert.equal(window.periodKey, "2026-09-22");
+  assert.equal(window.startsAt.toISOString(), "2026-09-22T06:00:00.000Z");
+  assert.equal(window.resetsAt.toISOString(), "2026-10-22T06:00:00.000Z");
   assert.equal(window.isActive, true);
 });
