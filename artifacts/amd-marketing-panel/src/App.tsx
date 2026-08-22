@@ -321,11 +321,14 @@ function NewOrderPage() {
     const next: typeof errors = {};
     if (!serviceId) next.service = 'Selecciona un servicio.';
     if (!selected) next.link = 'Selecciona un servicio antes de indicar el enlace.';
-    else next.link = validateLinkForPlatform(selected.platform, link);
+    else {
+      const linkError = validateLinkForPlatform(selected.platform, link);
+      if (linkError) next.link = linkError;
+    }
     const amount = Number(quantity);
     if (!quantity || !Number.isInteger(amount) || amount < (selected?.minQuantity ?? 1) || amount > (selected?.maxQuantity ?? Number.MAX_SAFE_INTEGER)) next.quantity = selected ? `Indica una cantidad entre ${selected.minQuantity.toLocaleString('es-ES')} y ${selected.maxQuantity.toLocaleString('es-ES')}.` : 'Indica una cantidad válida.';
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return !Object.values(next).some(Boolean);
   };
   const submit = async () => {
     if (!validate()) return;
@@ -364,7 +367,7 @@ function NewOrderPage() {
         </div>
         {submitError && <p className="mt-5 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-sm text-[hsl(var(--destructive))]">{submitError}</p>}
         {success && <p className="mt-5 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-sm text-[hsl(var(--accent))]">{success}</p>}
-        <div className="mt-6 flex justify-end"><button type="submit" formNoValidate data-testid="button-submit-order" disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
+        <div className="mt-6 flex justify-end"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
       </form>
       <aside className="terminal-panel h-fit p-5"><p className="terminal-label">Vista previa</p>{selected ? <div className="mt-5"><div className="mb-4 flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{selected.name}</h3><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{selected.platform} · {selected.contentType}</p></div><Sparkles size={15} className="text-[hsl(var(--primary))]" /></div><p className="text-sm leading-6 text-[hsl(var(--muted-foreground))]">{selected.description}</p><div className="mt-5 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))]"><div className="bg-[hsl(var(--card))] p-3"><Clock3 size={14} className="mb-2 text-[hsl(var(--primary))]" /><p className="terminal-label text-[8px]">Tiempo</p><p className="mt-1 text-xs font-medium">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-3"><RefreshCw size={14} className="mb-2 text-[hsl(var(--accent))]" /><p className="terminal-label text-[8px]">Recarga</p><p className="mt-1 text-xs font-medium">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[205px] flex-col items-center justify-center text-center"><PackageCheck size={18} className="mb-3 text-[hsl(var(--muted-foreground))]" /><p className="text-sm font-semibold">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Verás aquí sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
