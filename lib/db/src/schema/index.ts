@@ -38,6 +38,8 @@ export const ordersTable = pgTable("amd_orders", {
   quantity: integer("quantity").notNull(),
   status: text("status").notNull().default("En proceso"),
   progress: integer("progress").notNull().default(0),
+  startCount: integer("start_count"),
+  remains: integer("remains"),
   providerOrderId: text("provider_order_id"),
   refillAvailable: boolean("refill_available").notNull().default(false),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),

@@ -100,7 +100,35 @@ const elapsed = (createdAt: Date) => {
   return `${Math.floor(hours / 24)} d`;
 };
 
+const toNonNegativeInteger = (value: unknown) => {
+  if (value == null || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : undefined;
+};
+
+const normalizeStatus = (value: unknown, fallback: string) => {
+  const status = String(value ?? "").toLowerCase();
+  if (status.includes("complete") || status.includes("deliver") || status.includes("finish")) return "Completado";
+  if (status.includes("cancel")) return "Cancelado";
+  if (status.includes("refund")) return "Reembolso";
+  if (status.includes("pending")) return "Pendiente";
+  if (status.includes("progress") || status.includes("process") || status.includes("active")) return "En proceso";
+  return fallback;
+};
+
 const toOrder = (row: { order: typeof ordersTable.$inferSelect; service: typeof servicesTable.$inferSelect }) => ({
+  ...(() => {
+    const remains = row.order.remains;
+    const delivered = remains == null
+      ? null
+      : Math.max(0, Math.min(row.order.quantity, row.order.quantity - remains));
+    const progress = row.order.status === "Completado"
+      ? 100
+      : delivered == null
+        ? row.order.progress
+        : Math.round((delivered / row.order.quantity) * 100);
+    return { remains, delivered, progress };
+  })(),
   id: row.order.id,
   serviceId: row.order.serviceId,
   serviceName: row.service.name,
@@ -109,7 +137,7 @@ const toOrder = (row: { order: typeof ordersTable.$inferSelect; service: typeof 
   link: row.order.link,
   quantity: row.order.quantity,
   status: row.order.status,
-  progress: row.order.progress,
+  startCount: row.order.startCount,
   createdAt: row.order.createdAt.toISOString(),
   lastSyncedAt: row.order.lastSyncedAt?.toISOString() ?? null,
   elapsed: elapsed(row.order.createdAt),
@@ -222,10 +250,14 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
     const provider = type === "status"
       ? await marketerum.status({ order: row.order.providerOrderId ?? row.order.id })
       : await marketerum.refill({ order: row.order.providerOrderId ?? row.order.id });
-    const providerStatus = String(provider.status ?? "").toLowerCase();
-    const status = providerStatus.includes("complete") ? "Completado" : providerStatus.includes("cancel") ? "Cancelado" : row.order.status;
-    const progress = status === "Completado" ? 100 : Math.max(row.order.progress, Number(provider.progress ?? 0) || 0);
-    const [updated] = await db.update(ordersTable).set({ status, progress, lastSyncedAt: new Date(), refillAvailable: type === "refill" ? false : row.order.refillAvailable }).where(eq(ordersTable.id, row.order.id)).returning();
+    const providerRemains = type === "status" ? toNonNegativeInteger(provider.remains) : undefined;
+    const providerStartCount = type === "status" ? toNonNegativeInteger(provider.start_count) : undefined;
+    const remains = providerRemains ?? row.order.remains;
+    const startCount = providerStartCount ?? row.order.startCount;
+    const status = type === "status" ? normalizeStatus(provider.status, row.order.status) : row.order.status;
+    const delivered = remains == null ? null : Math.max(0, Math.min(row.order.quantity, row.order.quantity - remains));
+    const progress = status === "Completado" ? 100 : delivered == null ? row.order.progress : Math.round((delivered / row.order.quantity) * 100);
+    const [updated] = await db.update(ordersTable).set({ status, progress, startCount, remains, lastSyncedAt: new Date(), refillAvailable: type === "refill" ? false : row.order.refillAvailable }).where(eq(ordersTable.id, row.order.id)).returning();
     const schemaResponse = type === "status" ? SyncOrderStatusResponse : RefillOrderResponse;
     res.json(schemaResponse.parse(toOrder({ order: updated, service: row.service })));
   } catch {
@@ -245,7 +277,10 @@ router.get("/panel/dashboard", async (req, res): Promise<void> => {
   const completed = orders.filter((order) => order.status === "Completado");
   const needsAttention = orders.filter((order) => ["Cancelado", "Reembolso"].includes(order.status));
   const lastSync = rows.map(({ order }) => order.lastSyncedAt).filter(Boolean).sort((a, b) => b!.getTime() - a!.getTime())[0];
-  res.json(GetDashboardResponse.parse({ activeOrders: active.length, completedOrders: completed.length, totalOrders: orders.length, needsAttention: needsAttention.length, recentOrders: orders.slice(0, 5), lastSyncAt: lastSync?.toISOString() ?? null }));
+  const metricsPendingOrders = orders.filter((order) => order.delivered == null || order.remains == null).length;
+  const deliveredQuantity = metricsPendingOrders ? null : orders.reduce((total, order) => total + (order.delivered ?? 0), 0);
+  const remainingQuantity = metricsPendingOrders ? null : orders.reduce((total, order) => total + (order.remains ?? 0), 0);
+  res.json(GetDashboardResponse.parse({ activeOrders: active.length, completedOrders: completed.length, totalOrders: orders.length, needsAttention: needsAttention.length, deliveredQuantity, remainingQuantity, metricsPendingOrders, recentOrders: orders.slice(0, 5), lastSyncAt: lastSync?.toISOString() ?? null }));
 });
 
 export default router;

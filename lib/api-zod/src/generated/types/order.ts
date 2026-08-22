@@ -16,6 +16,12 @@ export interface Order {
   quantity: number;
   status: string;
   progress: number;
+  /** @nullable */
+  startCount: number | null;
+  /** @nullable */
+  remains: number | null;
+  /** @nullable */
+  delivered: number | null;
   createdAt: string;
   /** @nullable */
   lastSyncedAt: string | null;

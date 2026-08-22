@@ -213,11 +213,14 @@ components:
         completedOrders: { type: number }
         totalOrders: { type: number }
         needsAttention: { type: number }
+        deliveredQuantity: { type: ["number", "null"] }
+        remainingQuantity: { type: ["number", "null"] }
+        metricsPendingOrders: { type: number }
         recentOrders:
           type: array
           items: { $ref: "#/components/schemas/Order" }
         lastSyncAt: { type: ["string", "null"] }
-      required: [activeOrders, completedOrders, totalOrders, needsAttention, recentOrders, lastSyncAt]
+      required: [activeOrders, completedOrders, totalOrders, needsAttention, deliveredQuantity, remainingQuantity, metricsPendingOrders, recentOrders, lastSyncAt]
     Service:
       type: object
       properties:
@@ -243,11 +246,14 @@ components:
         quantity: { type: number }
         status: { type: string }
         progress: { type: number }
+        startCount: { type: ["number", "null"] }
+        remains: { type: ["number", "null"] }
+        delivered: { type: ["number", "null"] }
         createdAt: { type: string }
         lastSyncedAt: { type: ["string", "null"] }
         elapsed: { type: string }
         refillAvailable: { type: boolean }
-      required: [id, serviceId, serviceName, platform, contentType, link, quantity, status, progress, createdAt, lastSyncedAt, elapsed, refillAvailable]
+      required: [id, serviceId, serviceName, platform, contentType, link, quantity, status, progress, startCount, remains, delivered, createdAt, lastSyncedAt, elapsed, refillAvailable]
     OrderInput:
       type: object
       properties:

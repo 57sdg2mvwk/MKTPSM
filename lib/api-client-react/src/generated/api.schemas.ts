@@ -30,6 +30,12 @@ export interface Order {
   quantity: number;
   status: string;
   progress: number;
+  /** @nullable */
+  startCount: number | null;
+  /** @nullable */
+  remains: number | null;
+  /** @nullable */
+  delivered: number | null;
   createdAt: string;
   /** @nullable */
   lastSyncedAt: string | null;
@@ -42,6 +48,11 @@ export interface Dashboard {
   completedOrders: number;
   totalOrders: number;
   needsAttention: number;
+  /** @nullable */
+  deliveredQuantity: number | null;
+  /** @nullable */
+  remainingQuantity: number | null;
+  metricsPendingOrders: number;
   recentOrders: Order[];
   /** @nullable */
   lastSyncAt: string | null;

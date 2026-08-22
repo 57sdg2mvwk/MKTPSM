@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -38,7 +38,7 @@ import {
   useGetServices,
   useLogin,
   useLogout,
-  useSyncOrderStatus,
+  syncOrderStatus,
 } from '@workspace/api-client-react';
 import type { CurrentUser, Order, Service } from '@workspace/api-client-react';
 import { Link, Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
@@ -98,6 +98,10 @@ function lastUpdatedLabel(value: string | null, now: number) {
 
 function shortId(id: string) {
   return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-3)}` : id;
+}
+
+function formatMetric(value: number | null) {
+  return value == null ? '—' : value.toLocaleString('es-ES');
 }
 
 function isCompleted(order: Order) {
@@ -198,6 +202,11 @@ function StatusChip({ status }: { status: string }) {
   return <span data-testid={`status-order-${status}`} className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${styles[tone]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{statusLabel(status)}</span>;
 }
 
+function OrderMetric({ label, value, tone = 'default' }: { label: string; value: number | null; tone?: 'default' | 'primary' | 'accent' }) {
+  const color = tone === 'primary' ? 'text-[hsl(var(--primary))]' : tone === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--foreground))]';
+  return <div className="min-w-0 border-l border-[hsl(var(--border))] pl-3 first:border-l-0 first:pl-0"><p className="terminal-label text-[8px]">{label}</p><p className={`mono mt-1 truncate text-sm font-medium ${color}`}>{value == null ? '—' : value.toLocaleString('es-ES')}</p></div>;
+}
+
 function OrderLine({ order, now }: { order: Order; now: number }) {
   return (
     <div data-testid={`row-order-${order.id}`} className="group grid gap-4 border-b border-[hsl(var(--border)/.7)] px-5 py-4 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center">
@@ -219,14 +228,82 @@ function OrderLine({ order, now }: { order: Order; now: number }) {
         </div>
       </div>
       <div className="text-sm md:text-right">
-        <p className="mono font-medium">{order.quantity.toLocaleString('es-ES')}</p>
+        <p className="mono font-medium">{formatMetric(order.delivered)} <span className="text-[10px] text-[hsl(var(--muted-foreground))]">/ {order.quantity.toLocaleString('es-ES')}</span></p>
         <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{liveElapsed(order.createdAt, now)}</p>
       </div>
       <div className="flex items-center justify-end gap-2 text-right">
         <span className="terminal-label text-[8px]">{lastUpdatedLabel(order.lastSyncedAt, now)}</span>
       </div>
+      <div className="col-span-full grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[hsl(var(--border)/.7)] pt-3 sm:grid-cols-4">
+        <OrderMetric label="Cantidad total" value={order.quantity} />
+        <OrderMetric label="Inicio" value={order.startCount} />
+        <OrderMetric label="Enviados" value={order.delivered} tone="accent" />
+        <OrderMetric label="Faltantes" value={order.remains} tone="primary" />
+      </div>
     </div>
   );
+}
+
+function isPollable(order: Order) {
+  const status = order.status.toLowerCase();
+  return !isCompleted(order) && !status.includes('cancel') && !status.includes('reembolso') && !status.includes('refund');
+}
+
+function OrderSyncManager({ orders }: { orders: Order[] }) {
+  const queryClient = useQueryClient();
+  const inFlight = useRef(false);
+  const cursor = useRef(0);
+  const [isVisible, setIsVisible] = useState(() => !document.hidden);
+  const activeOrderIds = useMemo(
+    () => orders.filter(isPollable).map((order) => order.id).join(','),
+    [orders],
+  );
+
+  useEffect(() => {
+    const updateVisibility = () => setIsVisible(!document.hidden);
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!activeOrderIds || !isVisible) return undefined;
+    let cancelled = false;
+    let timeout: number | undefined;
+    const syncActiveOrders = async () => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      let completedCycle = false;
+      try {
+        const ids = activeOrderIds.split(',');
+        const cycleSize = Math.min(10, ids.length);
+        const selectedIds = Array.from({ length: cycleSize }, (_, index) => ids[(cursor.current + index) % ids.length]);
+        cursor.current = (cursor.current + cycleSize) % ids.length;
+        for (const orderId of selectedIds) {
+          if (cancelled) return;
+          await syncOrderStatus({ orderId });
+        }
+        if (!cancelled) {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }),
+            queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }),
+          ]);
+        }
+        completedCycle = true;
+      } catch {
+        // A transient provider error is retried on the next scheduled cycle.
+      } finally {
+        inFlight.current = false;
+        if (!cancelled) timeout = window.setTimeout(() => void syncActiveOrders(), completedCycle ? 15_000 : 30_000);
+      }
+    };
+    timeout = window.setTimeout(() => void syncActiveOrders(), 1_000);
+    return () => {
+      cancelled = true;
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [activeOrderIds, isVisible, queryClient]);
+
+  return null;
 }
 
 function Sidebar({ user, onClose }: { user: CurrentUser; onClose?: () => void }) {
@@ -302,14 +379,15 @@ function DashboardPage() {
   if (isError || !data) return <><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rápida del estado de tus pedidos y actividad reciente." /><ErrorState onRetry={() => void refetch()} /></>;
   const stats = [
     { label: 'Pedidos activos', value: data.activeOrders, detail: 'en seguimiento', icon: Activity, accent: 'primary' },
-    { label: 'Requieren atención', value: data.needsAttention, detail: data.needsAttention ? 'revisar ahora' : 'todo en orden', icon: CircleHelp, accent: data.needsAttention ? 'warning' : 'accent' },
+    { label: 'Enviados', value: formatMetric(data.deliveredQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades confirmadas', icon: Activity, accent: 'accent' },
+    { label: 'Faltantes', value: formatMetric(data.remainingQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades por procesar', icon: CircleHelp, accent: data.needsAttention ? 'warning' : 'primary' },
     { label: 'Completados', value: data.completedOrders, detail: `${data.totalOrders} pedidos totales`, icon: CheckCircle2, accent: 'accent' },
   ];
   return <div className="fade-up"><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rápida del estado de tus pedidos y actividad reciente." action={<Link href="/nuevo-pedido" data-testid="link-new-order-dashboard" className="inline-flex items-center justify-center gap-2 rounded-md border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3.5 py-2 text-xs font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110"><Plus size={15} /> Nuevo pedido</Link>} />
-    <div className="terminal-panel mb-6 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-3">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-5`}><div className="mb-6 flex items-center justify-between"><p className="terminal-label">{label}</p><Icon size={16} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-4"><p data-testid={`text-stat-${label}`} className="mono text-3xl font-medium tracking-[-.08em]">{value}</p><p className="pb-1 text-right text-[10px] text-[hsl(var(--muted-foreground))]">{detail}</p></div></div>)}</div>
+    <div className="terminal-panel mb-6 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-4">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-5`}><div className="mb-6 flex items-center justify-between"><p className="terminal-label">{label}</p><Icon size={16} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-4"><p data-testid={`text-stat-${label}`} className="mono text-3xl font-medium tracking-[-.08em]">{value}</p><p className="pb-1 text-right text-[10px] text-[hsl(var(--muted-foreground))]">{detail}</p></div></div>)}</div>
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
      <section className="terminal-panel overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-4"><div><p className="terminal-label">Actividad</p><h3 className="mt-1 text-sm font-semibold">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={12} /></Link></div>{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-5"><EmptyState icon={PackageCheck} title="Aún no hay actividad" description="Los pedidos nuevos aparecerán aquí en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear primer pedido <ArrowRight size={14} /></Link>} /></div>}</section>
-      <section className="terminal-panel p-5"><div className="mb-5 flex items-start justify-between"><div><p className="terminal-label">Estado del sistema</p><h3 className="mt-1 text-sm font-semibold">Sincronización</h3></div><Zap size={16} className="text-[hsl(var(--primary))]" /></div><div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-4"><div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--primary))]"><span className="h-1.5 w-1.5 rounded-full bg-current" />Operativo</div><p data-testid="text-last-sync" className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Última sincronización<br /><span className="mono text-[hsl(var(--foreground))]">{formatDate(data.lastSyncAt)}</span></p></div><div className="mt-5 space-y-3 border-t border-[hsl(var(--border))] pt-5"><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Pedidos registrados</span><span className="mono font-medium">{data.totalOrders}</span></div><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Tasa de finalización</span><span className="mono font-medium">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div></div></section>
+      <section className="terminal-panel p-5"><div className="mb-5 flex items-start justify-between"><div><p className="terminal-label">Estado del sistema</p><h3 className="mt-1 text-sm font-semibold">Sincronización</h3></div><Zap size={16} className="text-[hsl(var(--primary))]" /></div><div className="border border-[hsl(var(--primary)/.26)] bg-[hsl(var(--primary)/.06)] p-4"><div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--primary))]"><span className="h-1.5 w-1.5 rounded-full bg-current" />Operativo</div><p data-testid="text-last-sync" className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Última sincronización<br /><span className="mono text-[hsl(var(--foreground))]">{formatDate(data.lastSyncAt)}</span></p></div><div className="mt-5 space-y-3 border-t border-[hsl(var(--border))] pt-5"><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Pedidos registrados</span><span className="mono font-medium">{data.totalOrders}</span></div><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Métricas pendientes</span><span className="mono font-medium">{data.metricsPendingOrders}</span></div><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Atención pendiente</span><span className="mono font-medium">{data.needsAttention}</span></div><div className="flex justify-between text-xs"><span className="text-[hsl(var(--muted-foreground))]">Tasa de finalización</span><span className="mono font-medium">{data.totalOrders ? Math.round((data.completedOrders / data.totalOrders) * 100) : 0}%</span></div></div></section>
     </div>
   </div>;
 }
@@ -391,45 +469,18 @@ function NewOrderPage() {
 
 function ActiveOrdersPage() {
   const { data: orders, isLoading, isError, refetch } = useGetOrders();
-  const sync = useSyncOrderStatus();
-  const queryClient = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
   const active = useMemo(() => orders?.filter((order) => !isCompleted(order)) ?? [], [orders]);
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(clock);
   }, []);
-  const activeOrderIds = active.map((order) => order.id).join(',');
-  useEffect(() => {
-    if (!activeOrderIds) return undefined;
-    let running = false;
-    const syncActiveOrders = async () => {
-      if (running) return;
-      running = true;
-      try {
-        for (const id of activeOrderIds.split(',')) {
-          await sync.mutateAsync({ data: { orderId: id } });
-          await queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() });
-          await queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-        }
-      } catch {
-        // The next interval retries transient provider or network errors.
-      } finally {
-        running = false;
-      }
-    };
-    const interval = window.setInterval(() => void syncActiveOrders(), 15_000);
-    const initialSync = window.setTimeout(() => void syncActiveOrders(), 1_000);
-    return () => {
-      window.clearInterval(interval);
-      window.clearTimeout(initialSync);
-    };
-  }, [activeOrderIds, queryClient]);
-  if (isLoading) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." /><LoadingRows count={5} /></>;
-  if (isError || !orders) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." /><ErrorState onRetry={() => void refetch()} /></>;
+  if (isLoading) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automáticamente las métricas operativas de cada solicitud." /><LoadingRows count={5} /></>;
+  if (isError || !orders) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automáticamente las métricas operativas de cada solicitud." /><ErrorState onRetry={() => void refetch()} /></>;
   return <div className="fade-up">
-    <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automáticamente el avance y el tiempo transcurrido de cada pedido." />
-    <section className="terminal-panel overflow-hidden"><div className="grid border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-5 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px]"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right">Cantidad</span><span className="md:text-right">Actualización</span></div>{active.length ? active.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-5"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecerá en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</section>
+    <OrderSyncManager orders={active} />
+    <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automáticamente cantidad, inicio, enviados, faltantes y estado real de cada pedido." />
+    <section className="terminal-panel overflow-hidden"><div className="grid border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-5 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px]"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right">Enviados / total</span><span className="md:text-right">Actualización</span></div>{active.length ? active.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-5"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecerá en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</section>
       <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><RefreshCw size={13} /> Sincronización automática activa cada 15 s. El tiempo transcurrido se actualiza en vivo.</div>
   </div>;
 }
