@@ -19,12 +19,14 @@ let adminReady = false;
 const ensureAdminUser = async () => {
   if (adminReady) return;
   const email = "asesoriamarketingdigitalmxl@gmail.com";
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (existing) {
+    adminReady = true;
+    return;
+  }
   const password = process.env.AMD_ADMIN_PASSWORD;
   if (!password) throw new Error("Private access is not configured");
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-  if (!existing) {
-    await db.insert(usersTable).values({ id: randomUUID(), email, passwordHash: await hashPassword(password) });
-  }
+  await db.insert(usersTable).values({ id: randomUUID(), email, passwordHash: await hashPassword(password) });
   adminReady = true;
 };
 

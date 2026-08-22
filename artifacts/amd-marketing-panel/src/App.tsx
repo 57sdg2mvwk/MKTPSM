@@ -12,6 +12,8 @@ import {
   Copy,
   DollarSign,
   ExternalLink,
+  Eye,
+  EyeOff,
   FilePlus2,
   History,
   LayoutDashboard,
@@ -712,6 +714,7 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => { if (currentUser) setLocation('/dashboard'); }, [currentUser, setLocation]);
   const submit = () => {
@@ -748,7 +751,7 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
           <p className="mt-2 text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">Identificate para abrir tu espacio de operaciones.</p>
           <form className="terminal-panel mt-7 space-y-5 p-3 uppercase" onSubmit={(event) => { event.preventDefault(); submit(); }}>
             <label className="block uppercase"><span className="terminal-label mb-2 block uppercase">Correo electronico</span><input data-testid="input-login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="email" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /></label>
-            <label className="block uppercase"><div className="mb-2 flex items-center justify-between uppercase"><span className="terminal-label uppercase">Contrasena</span><span className="terminal-label text-[9px] uppercase">Sin registro</span></div><input data-testid="input-login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /></label>
+            <label className="block uppercase"><div className="mb-2 flex items-center justify-between uppercase"><span className="terminal-label uppercase">Contrasena</span><span className="terminal-label text-[9px] uppercase">Sin registro</span></div><div className="relative uppercase"><input data-testid="input-login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2.5 pr-10 text-[11px] outline-none transition placeholder:text-[hsl(var(--muted-foreground)/.7)] focus:border-[hsl(var(--primary))]" /><button type="button" data-testid="button-toggle-password" aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'} title={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'} onClick={() => setShowPassword((visible) => !visible)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--primary))] uppercase">{showPassword ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></label>
             {error && <p data-testid="status-login-error" className="border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] p-3 text-[10px] leading-5 text-[hsl(var(--destructive))] rounded-sm uppercase">{error}</p>}
             <button type="submit" formNoValidate data-testid="button-login" disabled={login.isPending} className="flex w-full items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{login.isPending ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <ArrowRight size={15} />}{login.isPending ? 'Validando…' : 'Entrar al panel'}</button>
           </form>
