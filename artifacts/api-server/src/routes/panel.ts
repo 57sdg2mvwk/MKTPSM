@@ -80,6 +80,7 @@ const getRows = async (userId: string, status?: string) => {
 
 router.get("/panel/services", async (req, res): Promise<void> => {
   if (!(await requireUser(req, res))) return;
+  void marketerum.services().catch(() => undefined);
   const services = await ensureServices();
   res.json(GetServicesResponse.parse(services.map(({ providerServiceId: _providerServiceId, ...service }) => service)));
 });
