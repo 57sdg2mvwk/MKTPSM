@@ -15,7 +15,16 @@ const request = async (action: string, payload?: Record<string, unknown>) => {
     body,
   });
   if (!response.ok) throw new Error(`Provider request failed with status ${response.status}`);
-  return (await response.json()) as Record<string, unknown>;
+  const data = (await response.json()) as unknown;
+  if (
+    data &&
+    !Array.isArray(data) &&
+    typeof data === "object" &&
+    typeof (data as Record<string, unknown>).error === "string"
+  ) {
+    throw new Error("Provider rejected the request");
+  }
+  return data as Record<string, unknown>;
 };
 
 export const marketerum = {
