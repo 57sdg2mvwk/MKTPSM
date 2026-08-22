@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 210 18% 8%;
+  --foreground: 46 25% 93%;
+  --border: 210 13% 19%;
+  --input: 210 13% 19%;
+  --ring: 39 95% 62%;
+  --card: 210 17% 11%;
+  --card-foreground: 46 25% 93%;
+  --card-border: 210 13% 20%;
+  --popover: 210 17% 12%;
+  --popover-foreground: 46 25% 93%;
+  --primary: 39 95% 62%;
+  --primary-foreground: 210 18% 8%;
+  --secondary: 210 14% 15%;
+  --secondary-foreground: 46 25% 93%;
+  --muted: 210 13% 15%;
+  --muted-foreground: 211 10% 59%;
+  --accent: 163 57% 47%;
+  --accent-foreground: 210 18% 8%;
+  --destructive: 2 72% 61%;
+  --destructive-foreground: 46 25% 93%;
+  --sidebar: 210 19% 7%;
+  --sidebar-foreground: 46 25% 93%;
+  --sidebar-border: 210 13% 17%;
+  --sidebar-accent: 210 14% 13%;
+  --sidebar-accent-foreground: 46 25% 93%;
+  --sidebar-primary: 39 95% 62%;
+  --sidebar-primary-foreground: 210 18% 8%;
+  --app-font-sans: 'Manrope', sans-serif;
+  --app-font-mono: 'DM Mono', monospace;
+  --radius: 0.75rem;
+  --shadow-sm: 0 5px 18px rgba(0, 0, 0, .18);
+  --shadow-md: 0 16px 40px rgba(0, 0, 0, .25);
+}
+
+* { box-sizing: border-box; }
+
+html { background: hsl(var(--background)); }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 82% -10%, rgba(190, 141, 57, .09), transparent 28rem),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+::selection { background: rgba(230, 172, 82, .28); color: hsl(var(--foreground)); }
+
+.mono { font-family: var(--app-font-mono); }
+
+.app-noise::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .032;
+  z-index: 50;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+}
+
+.fade-up { animation: fade-up .42s cubic-bezier(.2,.7,.2,1) both; }
+.fade-up-1 { animation-delay: 70ms; }
+.fade-up-2 { animation-delay: 140ms; }
+.fade-up-3 { animation-delay: 210ms; }
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,.035), rgba(255,255,255,.08), rgba(255,255,255,.035));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }

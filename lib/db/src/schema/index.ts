@@ -1,20 +1,48 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
-//
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
-//
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
+import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-export {}
+export const usersTable = pgTable("amd_users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const sessionsTable = pgTable("amd_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const servicesTable = pgTable("amd_services", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  platform: text("platform").notNull(),
+  contentType: text("content_type").notNull(),
+  description: text("description").notNull(),
+  minQuantity: integer("min_quantity").notNull(),
+  maxQuantity: integer("max_quantity").notNull(),
+  supportsRefill: boolean("supports_refill").notNull().default(false),
+  estimatedTime: text("estimated_time").notNull(),
+  providerServiceId: text("provider_service_id"),
+});
+
+export const ordersTable = pgTable("amd_orders", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id),
+  serviceId: text("service_id").notNull().references(() => servicesTable.id),
+  link: text("link").notNull(),
+  quantity: integer("quantity").notNull(),
+  status: text("status").notNull().default("En proceso"),
+  progress: integer("progress").notNull().default(0),
+  providerOrderId: text("provider_order_id"),
+  refillAvailable: boolean("refill_available").notNull().default(false),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type User = typeof usersTable.$inferSelect;
+export type Session = typeof sessionsTable.$inferSelect;
+export type Service = typeof servicesTable.$inferSelect;
+export type Order = typeof ordersTable.$inferSelect;

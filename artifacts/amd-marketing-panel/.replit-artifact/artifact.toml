@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "AMD Marketing Digital"
+description = "Panel privado en español para gestionar pedidos de marketing digital, consultar servicios y sincronizar estados de forma segura."
+version = "1.0.0"
+id = "artifacts/amd-marketing-panel"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18269
+
+[services.development]
+run = "pnpm --filter @workspace/amd-marketing-panel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/amd-marketing-panel", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/amd-marketing-panel/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18269"
+BASE_PATH = "/"

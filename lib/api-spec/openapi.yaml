@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Private authentication
+  - name: panel
+    description: Private marketing panel
 paths:
   /healthz:
     get:
@@ -24,6 +28,163 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          description: Not authenticated
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in to the private panel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          description: Invalid credentials
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Session ended
+  /panel/dashboard:
+    get:
+      operationId: getDashboard
+      tags: [panel]
+      summary: Get panel dashboard summary
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          description: Not authenticated
+  /panel/services:
+    get:
+      operationId: getServices
+      tags: [panel]
+      summary: Get public-facing service catalog
+      responses:
+        "200":
+          description: Service catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+        "401":
+          description: Not authenticated
+  /panel/orders:
+    get:
+      operationId: getOrders
+      tags: [panel]
+      summary: Get all customer orders
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        "401":
+          description: Not authenticated
+    post:
+      operationId: createOrder
+      tags: [panel]
+      summary: Create a new marketing order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid order
+        "401":
+          description: Not authenticated
+  /panel/orders/status:
+    post:
+      operationId: syncOrderStatus
+      tags: [panel]
+      summary: Sync order status from service provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderActionInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Not authenticated
+  /panel/orders/refill:
+    post:
+      operationId: refillOrder
+      tags: [panel]
+      summary: Request a refill for an eligible order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderActionInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Refill unavailable
+        "401":
+          description: Not authenticated
 components:
   schemas:
     HealthStatus:
@@ -33,4 +194,70 @@ components:
           type: string
       required:
         - status
+    CurrentUser:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+      required: [id, email]
+    LoginInput:
+      type: object
+      properties:
+        email: { type: string }
+        password: { type: string, minLength: 1 }
+      required: [email, password]
+    Dashboard:
+      type: object
+      properties:
+        activeOrders: { type: number }
+        completedOrders: { type: number }
+        totalOrders: { type: number }
+        needsAttention: { type: number }
+        recentOrders:
+          type: array
+          items: { $ref: "#/components/schemas/Order" }
+        lastSyncAt: { type: ["string", "null"] }
+      required: [activeOrders, completedOrders, totalOrders, needsAttention, recentOrders, lastSyncAt]
+    Service:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        platform: { type: string }
+        contentType: { type: string }
+        description: { type: string }
+        minQuantity: { type: number }
+        maxQuantity: { type: number }
+        supportsRefill: { type: boolean }
+        estimatedTime: { type: string }
+      required: [id, name, platform, contentType, description, minQuantity, maxQuantity, supportsRefill, estimatedTime]
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        serviceId: { type: string }
+        serviceName: { type: string }
+        platform: { type: string }
+        contentType: { type: string }
+        link: { type: string }
+        quantity: { type: number }
+        status: { type: string }
+        progress: { type: number }
+        createdAt: { type: string }
+        lastSyncedAt: { type: ["string", "null"] }
+        elapsed: { type: string }
+        refillAvailable: { type: boolean }
+      required: [id, serviceId, serviceName, platform, contentType, link, quantity, status, progress, createdAt, lastSyncedAt, elapsed, refillAvailable]
+    OrderInput:
+      type: object
+      properties:
+        serviceId: { type: string, minLength: 1 }
+        link: { type: string }
+        quantity: { type: number, minimum: 1 }
+      required: [serviceId, link, quantity]
+    OrderActionInput:
+      type: object
+      properties:
+        orderId: { type: string, minLength: 1 }
+      required: [orderId]
 
