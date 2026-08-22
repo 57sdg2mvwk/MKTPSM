@@ -20,11 +20,13 @@ import { calculateServiceInsights } from "../lib/service-insights";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
 import { ProviderRejectedError, marketerum } from "../lib/marketerum";
 import { isFinalOrderStatus, normalizeProviderStatus, settleOrderCredit } from "../lib/order-status";
+import { logger } from "../lib/logger";
 import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso", "Parcial"];
 const configuredServiceIds = new Set(["1934", "8631", "910", "998", "1129", "4665", "4668", "11161", "9397", "11228", "11241"]);
+const RESERVATION_RECONCILIATION_GRACE_MS = 30_000;
 const whitelabelServiceProfiles: Record<string, { name: string; contentType: string; description: string }> = {
   "8631": { name: "Facebook Perfil · Seguidores Globales", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook." },
   "1934": { name: "Facebook Seguidores · Audiencia de Pagina", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
@@ -168,7 +170,9 @@ const toOrder = (row: { order: typeof ordersTable.$inferSelect; service: typeof 
   costUsd: microsToUsd(row.order.costMicros),
   durationMinutes: row.order.completedAt ? Math.max(0, Math.round((row.order.completedAt.getTime() - row.order.createdAt.getTime()) / 60000)) : null,
   refillAvailable: row.order.refillAvailable,
-  needsReconciliation: !row.order.providerOrderId && row.order.status === "Pendiente",
+  needsReconciliation: !row.order.providerOrderId
+    && row.order.status === "Pendiente"
+    && Date.now() - row.order.createdAt.getTime() >= RESERVATION_RECONCILIATION_GRACE_MS,
 });
 
 const getCreditSummary = async (userId: string) => db.transaction(async (tx) => {
@@ -360,33 +364,32 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     }
     await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status: "Cancelado" });
   });
-  let providerOrderId: string;
-  try {
-    const provider = await marketerum.add({ service: service.providerServiceId ?? service.id, link: parsed.data.link, quantity: parsed.data.quantity });
-    providerOrderId = String(provider.order ?? provider.id ?? "");
-    if (!providerOrderId) throw new Error("Provider did not return an order ID");
-  } catch (error) {
-    if (error instanceof ProviderRejectedError) {
-      await cancelReservation();
-      res.status(502).json({ error: "No fue posible procesar el pedido en este momento." });
-      return;
+  const dispatchOrder = async () => {
+    try {
+      const provider = await marketerum.add({ service: service.providerServiceId ?? service.id, link: parsed.data.link, quantity: parsed.data.quantity });
+      const providerOrderId = String(provider.order ?? provider.id ?? "");
+      if (!providerOrderId) throw new Error("Provider did not return an order ID");
+      await db.transaction(async (tx) => {
+        const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, reservation.id)).for("update");
+        if (!locked || locked.providerOrderId || locked.status === "Cancelado") return;
+        await tx.update(ordersTable).set({ providerOrderId, status: "En proceso", lastSyncedAt: new Date() }).where(eq(ordersTable.id, locked.id));
+        await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status: "En proceso" });
+      });
+    } catch (error) {
+      if (error instanceof ProviderRejectedError) {
+        try {
+          await cancelReservation();
+        } catch (releaseError) {
+          logger.error({ err: releaseError, orderId: reservation.id }, "Could not release rejected order reservation");
+        }
+        return;
+      }
+      logger.warn({ err: error, orderId: reservation.id }, "Order dispatch remains pending");
     }
-    res.status(202).json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
-    return;
-  }
-  try {
-    const [created] = await db.transaction(async (tx) => {
-      const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, reservation.id)).for("update");
-      if (!locked) throw new Error("Reservation not found");
-      if (locked.providerOrderId) return [locked];
-      const [nextOrder] = await tx.update(ordersTable).set({ providerOrderId, status: "En proceso", lastSyncedAt: new Date() }).where(eq(ordersTable.id, locked.id)).returning();
-      await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status: "En proceso" });
-      return [nextOrder];
-    });
-    res.status(201).json(CreateOrderResponse.parse(toOrder({ order: created, service })));
-  } catch {
-    res.status(202).json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
-  }
+  };
+
+  void dispatchOrder();
+  res.status(202).json(CreateOrderResponse.parse(toOrder({ order: reservation, service })));
 });
 
 const action = async (req: any, res: any, type: "status" | "refill"): Promise<void> => {

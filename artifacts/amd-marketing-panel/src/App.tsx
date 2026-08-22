@@ -606,7 +606,7 @@ function NewOrderPage() {
       requestId.current = null;
       void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-      setSuccess(response.status === 202 ? 'Pedido reservado y pendiente de verificacion. Abriendo seguimiento…' : 'Pedido creado correctamente. Abriendo seguimiento…');
+       setSuccess(response.status === 202 ? 'Pedido recibido. Confirmando el envio y abriendo seguimiento…' : 'Pedido creado correctamente. Abriendo seguimiento…');
       window.setTimeout(() => setLocation('/pedidos-en-proceso'), 500);
     } catch (error) {
       setSubmitError(publicErrorMessage(error instanceof Error ? error.message : undefined, 'No se pudo crear el pedido. Revisa los datos e intentalo de nuevo.'));
