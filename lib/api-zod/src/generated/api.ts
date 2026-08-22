@@ -188,7 +188,7 @@ export const CreateOrderResponse = zod.object({
 
 
 /**
- * @summary Sync order status from service provider
+ * @summary Sync order status
  */
 
 
@@ -254,7 +254,7 @@ export const RefillOrderResponse = zod.object({
 
 
 /**
- * @summary Resolve a provider order reservation pending verification
+ * @summary Resolve an order reservation pending verification
  */
 
 
@@ -263,7 +263,7 @@ export const RefillOrderResponse = zod.object({
 export const ReconcileOrderReservationBody = zod.object({
   "orderId": zod.string().min(1),
   "resolution": zod.enum(['attach', 'release']),
-  "providerOrderId": zod.string().min(1).optional()
+  "trackingId": zod.string().min(1).optional()
 })
 
 export const ReconcileOrderReservationResponse = zod.object({

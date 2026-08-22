@@ -19,11 +19,25 @@ import { CreditNotStartedError, InsufficientCreditError, UnpricedServiceError, d
 import { calculateServiceInsights } from "../lib/service-insights";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
 import { ProviderRejectedError, marketerum } from "../lib/marketerum";
+import { isFinalOrderStatus, normalizeProviderStatus, settleOrderCredit } from "../lib/order-status";
 import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
-const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso"];
-const configuredServiceIds = new Set(["4665", "4668", "11161", "9397", "11228", "11241"]);
+const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso", "Parcial"];
+const configuredServiceIds = new Set(["1934", "8631", "910", "998", "1129", "4665", "4668", "11161", "9397", "11228", "11241"]);
+const whitelabelServiceProfiles: Record<string, { name: string; contentType: string; description: string }> = {
+  "8631": { name: "Facebook Perfil · Seguidores Globales", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook." },
+  "1934": { name: "Facebook Seguidores · Audiencia de Pagina", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
+  "910": { name: "Facebook Pagina · Likes y Seguidores", contentType: "Likes y Seguidores", description: "Interaccion combinada para paginas de Facebook." },
+  "1129": { name: "Facebook Seguidores · Calidad Estable", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
+  "998": { name: "Facebook Seguidores · Paginas", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
+  "4665": { name: "Facebook Likes · Recarga 7 Dias", contentType: "Me gusta", description: "Interaccion para publicaciones con recarga durante 7 dias." },
+  "4668": { name: "Facebook Likes · Recarga 60 Dias", contentType: "Me gusta", description: "Interaccion para publicaciones con recarga durante 60 dias." },
+  "11161": { name: "Facebook Reproducciones", contentType: "Reproducciones", description: "Visualizaciones para videos publicados en Facebook." },
+  "9397": { name: "Kick Visualizaciones de Clip", contentType: "Reproducciones", description: "Visualizaciones para clips publicados en Kick." },
+  "11228": { name: "Kick Audiencia en Vivo", contentType: "Audiencia", description: "Audiencia para transmisiones en vivo en Kick." },
+  "11241": { name: "Kick Audiencia en Vivo Flexible", contentType: "Audiencia", description: "Audiencia para transmisiones en vivo con control flexible." },
+};
 const LIVE_SERVICES_CACHE_MS = 60_000;
 class PendingReservationError extends Error {}
 
@@ -57,20 +71,15 @@ const ensureServices = async () => {
   const existing = await db.select().from(servicesTable);
   if (existing.length) return existing;
   const seed = [
-    { id: "4665", name: "Facebook Post Likes · HQ & Real · 7D Refill", platform: "Facebook", contentType: "Me gusta", description: "Likes de Facebook de alta calidad con recarga durante 7 días.", minQuantity: 20, maxQuantity: 500000, supportsRefill: true, estimatedTime: "Según proveedor", providerServiceId: "4665" },
+    { id: "8631", name: "Facebook Perfil · Seguidores Globales", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook.", minQuantity: 10, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "8631" },
+    { id: "1934", name: "Facebook Seguidores · Audiencia de Pagina", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 50, maxQuantity: 200000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "1934" },
+    { id: "910", name: "Facebook Pagina · Likes y Seguidores", platform: "Facebook", contentType: "Likes y Seguidores", description: "Interaccion combinada para paginas de Facebook.", minQuantity: 100, maxQuantity: 2000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "910" },
+    { id: "1129", name: "Facebook Seguidores · Calidad Estable", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 10, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "1129" },
+    { id: "998", name: "Facebook Seguidores · Paginas", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 10, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "998" },
+    { id: "4665", name: "Facebook Likes · Recarga 7 Dias", platform: "Facebook", contentType: "Me gusta", description: "Interaccion para publicaciones con recarga durante 7 dias.", minQuantity: 20, maxQuantity: 500000, supportsRefill: true, estimatedTime: "Tiempo variable", providerServiceId: "4665" },
   ];
   await db.insert(servicesTable).values(seed);
   return db.select().from(servicesTable);
-};
-
-const decodeProviderText = (value: unknown) => String(value ?? "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-const cleanServiceName = (value: unknown, id: string) => {
-  const name = decodeProviderText(value)
-    .replace(/\p{Extended_Pictographic}/gu, "")
-    .replace(/[•·|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return name || `Servicio ${id}`;
 };
 
 const providerPlatform = (service: Record<string, unknown>) => {
@@ -92,12 +101,13 @@ const syncLiveServices = async () => {
       .filter((service) => configuredServiceIds.has(String(service.service ?? service.id ?? "")))
       .map((service) => {
         const id = String(service.service ?? service.id);
+        const profile = whitelabelServiceProfiles[id];
         return {
           id,
-          name: cleanServiceName(service.name, id),
+          name: profile?.name ?? `Servicio social ${id}`,
           platform: providerPlatform(service),
-          contentType: decodeProviderText(service.type) || "Servicio",
-          description: decodeProviderText(service.category) || "Servicio disponible en tiempo real.",
+          contentType: profile?.contentType ?? "Servicio",
+          description: profile?.description ?? "Servicio social disponible en tiempo real.",
           minQuantity: Number(service.min),
           maxQuantity: Number(service.max),
           supportsRefill: service.refill === true || service.refill === "true",
@@ -131,16 +141,6 @@ const elapsed = (createdAt: Date) => {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} h`;
   return `${Math.floor(hours / 24)} d`;
-};
-
-const normalizeStatus = (value: unknown, fallback: string) => {
-  const status = String(value ?? "").toLowerCase();
-  if (status.includes("complete") || status.includes("deliver") || status.includes("finish")) return "Completado";
-  if (status.includes("cancel")) return "Cancelado";
-  if (status.includes("refund")) return "Reembolso";
-  if (status.includes("pending")) return "Pendiente";
-  if (status.includes("progress") || status.includes("process") || status.includes("active")) return "En proceso";
-  return fallback;
 };
 
 const toOrder = (row: { order: typeof ordersTable.$inferSelect; service: typeof servicesTable.$inferSelect }) => ({
@@ -353,7 +353,7 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
   const cancelReservation = async () => db.transaction(async (tx) => {
     const [locked] = await tx.select().from(ordersTable).where(eq(ordersTable.id, reservation.id)).for("update");
     if (!locked || locked.providerOrderId || locked.status === "Cancelado") return;
-    await tx.update(ordersTable).set({ status: "Cancelado", lastSyncedAt: new Date() }).where(eq(ordersTable.id, locked.id));
+    await tx.update(ordersTable).set({ status: "Cancelado", costMicros: 0, lastSyncedAt: new Date() }).where(eq(ordersTable.id, locked.id));
     if (locked.creditPeriodId && locked.costMicros) {
       await tx.select().from(creditPeriodsTable).where(eq(creditPeriodsTable.id, locked.creditPeriodId)).for("update");
       await tx.insert(creditLedgerTable).values({ id: randomUUID(), userId: user.id, periodId: locked.creditPeriodId, orderId: locked.id, kind: "reversion-reserva", amountMicros: -locked.costMicros });
@@ -404,7 +404,7 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
     return;
   }
   if (type === "refill" && !row.order.refillAvailable) {
-    res.status(400).json({ error: "Este pedido no admite refill." });
+    res.status(400).json({ error: "Este pedido no admite recarga." });
     return;
   }
   if (!row.order.providerOrderId) {
@@ -419,15 +419,31 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
     const providerStartCount = type === "status" ? toNonNegativeInteger(provider.start_count) : undefined;
     const remains = providerRemains ?? row.order.remains;
     const startCount = providerStartCount ?? row.order.startCount;
-    const status = type === "status" ? normalizeStatus(provider.status, row.order.status) : row.order.status;
+    const providerStatus = type === "status" ? normalizeProviderStatus(provider.status, row.order.status) : row.order.status;
+    const status = type === "status" && isFinalOrderStatus(row.order.status) && !isFinalOrderStatus(providerStatus)
+      ? row.order.status
+      : providerStatus;
     const { progress } = deriveOrderMetrics({ quantity: row.order.quantity, status, progress: row.order.progress, remains });
     const now = new Date();
     const confirmedCostMicros = type === "status" ? decimalToMicros(provider.charge) : undefined;
-    const costMicros = confirmedCostMicros ?? row.order.costMicros;
     const [updated] = await db.transaction(async (tx) => {
       const [lockedOrder] = await tx.select().from(ordersTable).where(eq(ordersTable.id, row.order.id)).for("update");
       if (!lockedOrder) throw new Error("Order not found");
-      if (confirmedCostMicros != null && lockedOrder.creditPeriodId && confirmedCostMicros !== lockedOrder.costMicros) {
+      const [existingProviderRefund] = type === "status" && (status === "Cancelado" || status === "Reembolso")
+        ? await tx.select({ id: creditLedgerTable.id }).from(creditLedgerTable).where(and(
+          eq(creditLedgerTable.orderId, lockedOrder.id),
+          eq(creditLedgerTable.kind, "reversion-proveedor"),
+        )).limit(1)
+        : [];
+      const settlement = type === "status"
+        ? settleOrderCredit({
+          status,
+          currentCostMicros: lockedOrder.costMicros,
+          providerChargeMicros: confirmedCostMicros,
+          finalRefundApplied: Boolean(existingProviderRefund),
+        })
+        : { nextCostMicros: lockedOrder.costMicros, adjustmentMicros: 0, refundMicros: 0 };
+      if (settlement.adjustmentMicros !== 0 && lockedOrder.creditPeriodId) {
         await tx.select().from(creditPeriodsTable).where(eq(creditPeriodsTable.id, lockedOrder.creditPeriodId)).for("update");
         await tx.insert(creditLedgerTable).values({
           id: randomUUID(),
@@ -435,7 +451,18 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
           periodId: lockedOrder.creditPeriodId,
           orderId: lockedOrder.id,
           kind: "ajuste-coste-confirmado",
-          amountMicros: confirmedCostMicros - (lockedOrder.costMicros ?? 0),
+          amountMicros: settlement.adjustmentMicros,
+        });
+      }
+      if (settlement.refundMicros !== 0 && lockedOrder.creditPeriodId) {
+        await tx.select().from(creditPeriodsTable).where(eq(creditPeriodsTable.id, lockedOrder.creditPeriodId)).for("update");
+        await tx.insert(creditLedgerTable).values({
+          id: randomUUID(),
+          userId: user.id,
+          periodId: lockedOrder.creditPeriodId,
+          orderId: lockedOrder.id,
+          kind: "reversion-proveedor",
+          amountMicros: settlement.refundMicros,
         });
       }
       const [nextOrder] = await tx.update(ordersTable).set({
@@ -443,13 +470,13 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
         progress,
         startCount,
         remains,
-        costMicros,
+        costMicros: settlement.nextCostMicros,
         firstSyncedAt: row.order.firstSyncedAt ?? now,
         completedAt: status === "Completado" ? row.order.completedAt ?? now : row.order.completedAt,
         lastSyncedAt: now,
         refillAvailable: type === "refill" ? false : row.order.refillAvailable,
       }).where(eq(ordersTable.id, lockedOrder.id)).returning();
-      if (type === "status" && status !== row.order.status) {
+       if (type === "status" && status !== lockedOrder.status) {
         await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: row.order.id, userId: user.id, status, recordedAt: now });
       }
       return [nextOrder];
@@ -468,7 +495,7 @@ router.post("/panel/orders/reconcile", async (req, res): Promise<void> => {
   const user = await requireUser(req, res);
   if (!user) return;
   const parsed = ReconcileOrderReservationBody.safeParse(req.body);
-  if (!parsed.success || (parsed.data.resolution === "attach" && !parsed.data.providerOrderId)) {
+  if (!parsed.success || (parsed.data.resolution === "attach" && !parsed.data.trackingId)) {
     res.status(400).json({ error: "Revisa los datos de reconciliacion." });
     return;
   }
@@ -494,7 +521,8 @@ router.post("/panel/orders/reconcile", async (req, res): Promise<void> => {
     const status = parsed.data.resolution === "attach" ? "En proceso" : "Cancelado";
     const [nextOrder] = await tx.update(ordersTable).set({
       status,
-      providerOrderId: parsed.data.resolution === "attach" ? parsed.data.providerOrderId : null,
+      providerOrderId: parsed.data.resolution === "attach" ? parsed.data.trackingId : null,
+      costMicros: parsed.data.resolution === "release" ? 0 : locked.costMicros,
       lastSyncedAt: now,
     }).where(eq(ordersTable.id, locked.id)).returning();
     await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId: locked.id, userId: user.id, status, recordedAt: now });
@@ -508,9 +536,9 @@ router.get("/panel/dashboard", async (req, res): Promise<void> => {
   if (!user) return;
   const rows = await getRows(user.id);
   const orders = rows.map(toOrder);
-  const active = orders.filter((order) => ["En proceso", "Pendiente"].includes(order.status));
+   const active = orders.filter((order) => !isFinalOrderStatus(order.status));
   const completed = orders.filter((order) => order.status === "Completado");
-  const needsAttention = orders.filter((order) => ["Cancelado", "Reembolso"].includes(order.status));
+   const needsAttention = orders.filter((order) => ["Cancelado", "Reembolso", "Parcial"].includes(order.status));
   const lastSync = rows.map(({ order }) => order.lastSyncedAt).filter(Boolean).sort((a, b) => b!.getTime() - a!.getTime())[0];
   const metricsPendingOrders = orders.filter((order) => order.delivered == null || order.remains == null).length;
   const deliveredQuantity = metricsPendingOrders ? null : orders.reduce((total, order) => total + (order.delivered ?? 0), 0);

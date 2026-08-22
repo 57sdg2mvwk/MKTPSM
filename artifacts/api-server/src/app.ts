@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
@@ -32,5 +32,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api", router);
+
+app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err: error, path: req.originalUrl }, "Unhandled application request");
+  if (res.headersSent) return;
+  res.status(500).json({ error: "No fue posible completar la solicitud en este momento." });
+});
 
 export default app;

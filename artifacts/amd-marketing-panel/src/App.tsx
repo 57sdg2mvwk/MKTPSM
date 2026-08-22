@@ -55,6 +55,27 @@ import amdLogo from '@/assets/amd-logo-cropped.png';
 import './index.css';
 
 const queryClient = new QueryClient();
+const PUBLIC_ERROR_MESSAGES = new Set([
+  'Revisa los datos del pedido.',
+  'El servicio no está disponible en este momento.',
+  'La cantidad no está disponible para este servicio.',
+  'El precio del servicio no esta disponible. Intenta mas tarde.',
+  'El precio del servicio no esta disponible.',
+  'Credito insuficiente para este pedido. Espera al proximo reinicio mensual.',
+  'El credito mensual aun no esta activo.',
+  'Ya existe un pedido pendiente de verificacion. Intenta mas tarde.',
+  'No fue posible reservar el pedido en este momento.',
+  'La solicitud anterior fue rechazada. Intenta crear un pedido nuevo.',
+  'No fue posible procesar el pedido en este momento.',
+  'Revisa los datos de reconciliacion.',
+  'Pedido no encontrado.',
+  'Este pedido no requiere reconciliacion.',
+  'No fue posible completar la solicitud en este momento.',
+]);
+
+function publicErrorMessage(value: unknown, fallback: string) {
+  return typeof value === 'string' && PUBLIC_ERROR_MESSAGES.has(value) ? value : fallback;
+}
 
 function AmdLogo({ className = '' }: { className?: string }) {
   return <img src={amdLogo} alt="AMD Marketing Digital" className={`block object-contain ${className}`} />;
@@ -110,6 +131,29 @@ function formatMetric(value: number | null) {
   return value == null ? '—' : value.toLocaleString('es-ES');
 }
 
+function contentTypeLabel(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized && normalized.toLowerCase() !== 'default' ? normalized : '';
+}
+
+const whitelabelServiceNames: Record<string, string> = {
+  '8631': 'Facebook Perfil · Seguidores Globales',
+  '1934': 'Facebook Seguidores · Audiencia de Pagina',
+  '910': 'Facebook Pagina · Likes y Seguidores',
+  '1129': 'Facebook Seguidores · Calidad Estable',
+  '998': 'Facebook Seguidores · Paginas',
+  '4665': 'Facebook Likes · Recarga 7 Dias',
+  '4668': 'Facebook Likes · Recarga 60 Dias',
+  '11161': 'Facebook Reproducciones',
+  '9397': 'Kick Visualizaciones de Clip',
+  '11228': 'Kick Audiencia en Vivo',
+  '11241': 'Kick Audiencia en Vivo Flexible',
+};
+
+function displayServiceName(id: string, value: string) {
+  return whitelabelServiceNames[id] ?? value.replace(/\p{Extended_Pictographic}/gu, '').replace(/\s+/g, ' ').trim();
+}
+
 function formatCoins(value: number | null | undefined) {
   if (value == null) return '—';
   return `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value * 100)} COINS`;
@@ -120,12 +164,19 @@ function isCompleted(order: Order) {
   return ['completed', 'complete', 'completado', 'finalizado', 'finished', 'delivered', 'entregado'].some((term) => status.includes(term));
 }
 
+function isTerminalOrder(order: Order) {
+  const status = order.status.toLowerCase();
+  return isCompleted(order) || ['cancel', 'refund', 'reembolso', 'partial', 'parcial'].some((term) => status.includes(term));
+}
+
 function statusLabel(status: string) {
   const value = status.toLowerCase();
   if (value.includes('complete') || value.includes('complet') || value.includes('final') || value.includes('entreg')) return 'Completado';
+  if (value.includes('partial') || value.includes('parcial')) return 'Parcial';
   if (value.includes('process') || value.includes('progreso') || value.includes('active') || value.includes('curso')) return 'En proceso';
   if (value.includes('pending') || value.includes('pendiente')) return 'Pendiente';
   if (value.includes('cancel')) return 'Cancelado';
+  if (value.includes('refund') || value.includes('reembolso')) return 'Reembolso';
   return status;
 }
 
@@ -157,7 +208,8 @@ function validateLinkForPlatform(platform: string, value: string) {
 
 function statusTone(status: string) {
   const value = status.toLowerCase();
-  if (value.includes('cancel')) return 'danger';
+  if (value.includes('cancel') || value.includes('refund') || value.includes('reembolso')) return 'danger';
+  if (value.includes('partial') || value.includes('parcial')) return 'warning';
   if (isCompleted({ status } as Order)) return 'success';
   if (value.includes('pending') || value.includes('pendiente')) return 'warning';
   return 'active';
@@ -203,6 +255,19 @@ function LoadingRows({ count = 4 }: { count?: number }) {
   );
 }
 
+function MiniTrend({ values, accent = 'primary' }: { values: number[]; accent?: 'primary' | 'accent' | 'warning' }) {
+  const points = values.length ? values : [0];
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const range = max - min || 1;
+  const coordinates = points.map((value, index) => {
+    const x = points.length === 1 ? 2 : (index / (points.length - 1)) * 96;
+    const y = 22 - ((value - min) / range) * 18;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return <svg viewBox="0 0 98 24" className="h-6 w-24 opacity-90" role="img" aria-label="Tendencia en vivo"><polyline points={coordinates} fill="none" stroke={`hsl(var(--${accent}))`} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /><circle cx={coordinates.split(' ').at(-1)?.split(',')[0]} cy={coordinates.split(' ').at(-1)?.split(',')[1]} r="1.8" fill={`hsl(var(--${accent}))`} /></svg>;
+}
+
 function StatusChip({ status }: { status: string }) {
   const tone = statusTone(status);
   const styles = {
@@ -211,43 +276,43 @@ function StatusChip({ status }: { status: string }) {
     danger: 'bg-[hsl(var(--destructive)/.12)] text-[hsl(var(--destructive))] border-[hsl(var(--destructive)/.2)]',
     active: 'bg-[hsl(var(--info)/.1)] text-[hsl(var(--info))] border-[hsl(var(--info)/.2)]',
   };
-  return <span data-testid={`status-order-${status}`} className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${styles[tone]}`}><span className="h-1.5 w-1.5 rounded-full bg-current uppercase" />{statusLabel(status)}</span>;
+  return <span data-testid={`status-order-${status}`} className={`inline-flex h-4 items-center gap-0.5 whitespace-nowrap rounded-full border px-1 py-[1px] text-[7px] font-bold uppercase leading-none tracking-[.06em] ${styles[tone]}`}><span className="h-0.5 w-0.5 rounded-full bg-current uppercase" />{statusLabel(status)}</span>;
 }
 
 function OrderMetric({ label, value, tone = 'default', isCurrency = false }: { label: string; value: number | null; tone?: 'default' | 'primary' | 'accent', isCurrency?: boolean }) {
   const color = tone === 'primary' ? 'text-[hsl(var(--primary))]' : tone === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--foreground))]';
   const displayValue = value == null ? '—' : isCurrency ? formatCoins(value) : value.toLocaleString('es-ES');
-  return <div className="min-w-0 border-l border-[hsl(var(--border))] pl-3 first:border-l-0 first:pl-0 uppercase"><p className="terminal-label text-[8px] uppercase">{label}</p><p className={`mono mt-1 truncate text-[11px] font-medium ${color}`}>{displayValue}</p></div>;
+  return <div className="min-w-0 border-l border-[hsl(var(--border))] pl-2 first:border-l-0 first:pl-0 uppercase"><p className="terminal-label text-[7px] uppercase">{label}</p><p className={`mono mt-0.5 truncate text-[9px] font-medium ${color}`}>{displayValue}</p></div>;
 }
 
 function OrderLine({ order, now }: { order: Order; now: number }) {
   return (
-    <div data-testid={`row-order-${order.id}`} className="group grid gap-2 border-b border-[hsl(var(--border)/.7)] px-3 py-2 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center uppercase">
+    <div data-testid={`row-order-${order.id}`} className="group grid gap-1.5 border-b border-[hsl(var(--border)/.7)] px-2.5 py-1.5 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center uppercase">
       <div className="min-w-0 uppercase">
         <div className="flex items-center gap-2 uppercase">
-          <span className="mono text-[11px] text-[hsl(var(--muted-foreground))] uppercase">#{shortId(order.id)}</span>
+          <span className="mono text-[9px] text-[hsl(var(--muted-foreground))] uppercase">#{shortId(order.id)}</span>
           <StatusChip status={order.status} />
         </div>
-        <p data-testid={`text-service-${order.id}`} className="mt-2 truncate font-bold uppercase">{order.serviceName}</p>
-        <p className="mt-0.5 truncate text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{order.platform} · {order.contentType}</p>
+        <p data-testid={`text-service-${order.id}`} className="mt-1 truncate text-[10px] font-bold uppercase">{displayServiceName(order.serviceId, order.serviceName)}</p>
+        <p className="mt-0.5 truncate text-[8px] text-[hsl(var(--muted-foreground))] uppercase">{order.platform}{contentTypeLabel(order.contentType) ? ` · ${contentTypeLabel(order.contentType)}` : ''}</p>
       </div>
       <div className="min-w-0 uppercase">
-        <div className="mb-2 flex items-center justify-between text-[10px] uppercase">
-          <span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[10px] font-bold">Avance</span>
-          <span data-testid={`text-progress-${order.id}`} className="mono font-bold text-[hsl(var(--foreground))] uppercase">{order.progress}%</span>
+        <div className="mb-1 flex items-center justify-between text-[8px] uppercase">
+          <span className="text-[hsl(var(--muted-foreground))] uppercase tracking-wider text-[8px] font-bold">Avance</span>
+          <span data-testid={`text-progress-${order.id}`} className="mono text-[9px] font-bold text-[hsl(var(--foreground))] uppercase">{order.progress}%</span>
         </div>
-        <div className="h-1.5 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm uppercase">
+        <div className="h-1 overflow-hidden bg-[hsl(var(--secondary))] rounded-sm uppercase">
           <div className="h-full bg-[hsl(var(--primary))] transition-all duration-500 uppercase" style={{ width: `${Math.min(100, Math.max(0, order.progress))}%` }} />
         </div>
       </div>
-      <div className="text-[11px] md:text-right uppercase">
+      <div className="text-[9px] md:text-right uppercase">
         <p className="mono font-bold uppercase">{formatMetric(order.delivered)} <span className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase">/ {order.quantity.toLocaleString('es-ES')}</span></p>
-        <p className="mt-0.5 text-[10px] text-[hsl(var(--muted-foreground))] uppercase">{liveElapsed(order.createdAt, now)}</p>
+        <p className="mt-0.5 text-[8px] text-[hsl(var(--muted-foreground))] uppercase">{liveElapsed(order.createdAt, now)}</p>
       </div>
       <div className="flex items-center justify-end gap-2 text-right uppercase">
         <span className="terminal-label text-[8px] uppercase">{lastUpdatedLabel(order.lastSyncedAt, now)}</span>
       </div>
-      <div className="col-span-full grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[hsl(var(--border)/.7)] pt-3 sm:grid-cols-5 uppercase">
+      <div className="col-span-full grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[hsl(var(--border)/.7)] pt-2 sm:grid-cols-5 uppercase">
         <OrderMetric label="Cantidad total" value={order.quantity} />
         <OrderMetric label="Inicio" value={order.startCount} />
         <OrderMetric label="Enviados" value={order.delivered} tone="accent" />
@@ -259,8 +324,7 @@ function OrderLine({ order, now }: { order: Order; now: number }) {
 }
 
 function isPollable(order: Order) {
-  const status = order.status.toLowerCase();
-  return !order.needsReconciliation && !isCompleted(order) && !status.includes('cancel') && !status.includes('reembolso') && !status.includes('refund');
+  return !order.needsReconciliation && !isTerminalOrder(order);
 }
 
 function OrderSyncManager({ orders }: { orders: Order[] }) {
@@ -304,7 +368,7 @@ function OrderSyncManager({ orders }: { orders: Order[] }) {
         }
         completedCycle = true;
       } catch {
-        // A transient provider error is retried on the next scheduled cycle.
+        // A transient service issue is retried on the next scheduled cycle.
       } finally {
         inFlight.current = false;
         if (!cancelled) timeout = window.setTimeout(() => void syncActiveOrders(), completedCycle ? 15_000 : 30_000);
@@ -388,17 +452,29 @@ function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; t
 }
 
 function DashboardPage() {
-  const { data, isLoading, isError, refetch } = useGetDashboard();
+  const { data, isLoading, isError, refetch } = useGetDashboard({ query: { queryKey: getGetDashboardQueryKey(), refetchInterval: 15_000, refetchIntervalInBackground: false, refetchOnWindowFocus: false, staleTime: 5_000 } });
+  const [trend, setTrend] = useState({ active: [] as number[], delivered: [] as number[], remains: [] as number[], completed: [] as number[] });
+  useEffect(() => {
+    if (!data) return;
+    const append = (values: number[], next: number | null) => next == null ? values : [...values, next].slice(-12);
+    setTrend((current) => ({
+      active: append(current.active, data.activeOrders),
+      delivered: append(current.delivered, data.deliveredQuantity),
+      remains: append(current.remains, data.remainingQuantity),
+      completed: append(current.completed, data.completedOrders),
+    }));
+  }, [data]);
   if (isLoading) return <><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rapida del estado de tus pedidos y actividad reciente." /><LoadingRows count={5} /></>;
   if (isError || !data) return <><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rapida del estado de tus pedidos y actividad reciente." /><ErrorState onRetry={() => void refetch()} /></>;
   const stats = [
-    { label: 'Pedidos activos', value: data.activeOrders, detail: 'en seguimiento', icon: Activity, accent: 'primary' },
-    { label: 'Enviados', value: formatMetric(data.deliveredQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades confirmadas', icon: Activity, accent: 'accent' },
-    { label: 'Faltantes', value: formatMetric(data.remainingQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades por procesar', icon: CircleHelp, accent: data.needsAttention ? 'warning' : 'primary' },
-    { label: 'Completados', value: data.completedOrders, detail: `${data.totalOrders} pedidos totales`, icon: CheckCircle2, accent: 'accent' },
+    { key: 'active' as const, label: 'Pedidos activos', value: data.activeOrders, detail: 'en seguimiento', icon: Activity, accent: 'primary' as const },
+    { key: 'delivered' as const, label: 'Enviados', value: formatMetric(data.deliveredQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades confirmadas', icon: Activity, accent: 'accent' as const },
+    { key: 'remains' as const, label: 'Faltantes', value: formatMetric(data.remainingQuantity), detail: data.metricsPendingOrders ? 'datos pendientes' : 'unidades por procesar', icon: CircleHelp, accent: data.needsAttention ? 'warning' as const : 'primary' as const },
+    { key: 'completed' as const, label: 'Completados', value: data.completedOrders, detail: `${data.totalOrders} pedidos totales`, icon: CheckCircle2, accent: 'accent' as const },
   ];
   return <div className="fade-up uppercase"><PageIntro eyebrow="01 / Control" title="Resumen operativo" description="Lectura rapida del estado de tus pedidos y actividad reciente." action={<Link href="/nuevo-pedido" data-testid="link-new-order-dashboard" className="inline-flex items-center justify-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3.5 py-2 text-[10px] font-bold text-[hsl(var(--primary-foreground))] transition hover:brightness-110 uppercase"><Plus size={15} /> Nuevo pedido</Link>} />
-     <div className="terminal-panel mb-2 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-4 uppercase">{stats.map(({ label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-3`}><div className="mb-2 flex items-center justify-between uppercase"><p className="terminal-label text-[9px] uppercase">{label}</p><Icon size={14} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div><div className="flex items-end justify-between gap-2 uppercase"><p data-testid={`text-stat-${label}`} className="mono text-[16px] font-bold tracking-[-.08em] uppercase">{value}</p><p className="pb-0.5 text-right text-[8px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{detail}</p></div></div>)}</div>
+      <div className="mb-1 flex items-center gap-2 px-0.5 text-[8px] font-bold uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[hsl(var(--accent))] uppercase" /> Live data · actualizacion cada 15s</div>
+      <div className="terminal-panel mb-2 grid gap-px overflow-hidden bg-[hsl(var(--border))] md:grid-cols-4 uppercase">{stats.map(({ key, label, value, detail, icon: Icon, accent }, index) => <div key={label} className={`fade-up fade-up-${index + 1} bg-[hsl(var(--card))] p-3`}><div className="mb-1 flex items-center justify-between uppercase"><p className="terminal-label text-[9px] uppercase">{label}</p><div className="flex items-center gap-2 uppercase"><MiniTrend values={trend[key]} accent={accent === 'warning' ? 'primary' : accent} /><Icon size={14} className={accent === 'accent' ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--primary))]'} /></div></div><div className="flex items-end justify-between gap-2 uppercase"><p data-testid={`text-stat-${label}`} className="mono text-[16px] font-bold tracking-[-.08em] uppercase">{value}</p><p className="pb-0.5 text-right text-[8px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{detail}</p></div></div>)}</div>
     <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)] uppercase">
       <section className="terminal-panel flex max-h-[460px] flex-col overflow-hidden uppercase"><div className="flex shrink-0 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 uppercase"><div><p className="terminal-label text-[9px] uppercase">Actividad</p><h3 className="mt-0.5 text-[10px] font-bold uppercase">Actividad reciente</h3></div><Link href="/pedidos-en-proceso" data-testid="link-see-active" className="inline-flex items-center gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1 text-[9px] font-bold uppercase tracking-[.08em] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))]">Ver activos <ArrowRight size={11} /></Link></div><div className="overflow-y-auto uppercase">{data.recentOrders?.length ? data.recentOrders.map((order) => <OrderLine key={order.id} order={order} now={Date.now()} />) : <div className="p-2 uppercase"><EmptyState icon={PackageCheck} title="Aun no hay actividad" description="Los pedidos nuevos apareceran aqui en cuanto se registren." action={<Link href="/nuevo-pedido" data-testid="link-empty-new-order" className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">Crear primer pedido <ArrowRight size={12} /></Link>} /></div>}</div></section>
       <div className="flex flex-col gap-2 uppercase">
@@ -525,7 +601,7 @@ function NewOrderPage() {
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) {
         requestId.current = null;
-        throw new Error(result?.error || 'No se pudo crear el pedido.');
+        throw new Error(publicErrorMessage(result?.error, 'No se pudo crear el pedido en este momento.'));
       }
       requestId.current = null;
       void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() });
@@ -533,7 +609,7 @@ function NewOrderPage() {
       setSuccess(response.status === 202 ? 'Pedido reservado y pendiente de verificacion. Abriendo seguimiento…' : 'Pedido creado correctamente. Abriendo seguimiento…');
       window.setTimeout(() => setLocation('/pedidos-en-proceso'), 500);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'No se pudo crear el pedido. Revisa los datos e intentalo de nuevo.');
+      setSubmitError(publicErrorMessage(error instanceof Error ? error.message : undefined, 'No se pudo crear el pedido. Revisa los datos e intentalo de nuevo.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -556,9 +632,9 @@ function NewOrderPage() {
                <div className="relative flex-1 uppercase"><Search size={13} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))] uppercase" /><input value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder="Buscar por nombre o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] py-2 pl-8 pr-3 text-[10px] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div>
                <span className="terminal-label self-center text-[8px] uppercase">{filteredServices.length} resultado{filteredServices.length === 1 ? '' : 's'}</span>
              </div>
-              <div className="mb-1.5 flex flex-wrap gap-1 border-b border-[hsl(var(--border))] pb-1.5 uppercase" role="tablist" aria-label="Tipo de servicio">
+               <div className="mb-1 flex flex-wrap gap-0.5 border-b border-[hsl(var(--border))] pb-1 uppercase" role="tablist" aria-label="Tipo de servicio">
                {contentTypes.map((type) => (
-                 <button key={type} type="button" role="tab" aria-selected={selectedContentType === type} onClick={() => setSelectedContentType(type)} className={`rounded-sm border px-2 py-1 text-[8px] font-bold uppercase tracking-wider transition ${selectedContentType === type ? 'border-[hsl(var(--primary)/.5)] bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}`}>{type}</button>
+                  <button key={type} type="button" role="tab" aria-selected={selectedContentType === type} onClick={() => setSelectedContentType(type)} className={`rounded-sm border px-1.5 py-0.5 text-[7px] font-bold uppercase leading-3 tracking-[.08em] transition ${selectedContentType === type ? 'border-[hsl(var(--primary)/.5)] bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}`}>{type}</button>
                ))}
              </div>
               <div className="space-y-1 uppercase">
@@ -568,10 +644,10 @@ function NewOrderPage() {
                        <input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[hsl(var(--primary))]" />
                       <span className="min-w-0 flex-1 uppercase">
                          <span className="block text-[10px] font-bold flex items-center gap-1.5 uppercase">
-                          {service.name}
+                           {displayServiceName(service.id, service.name)}
                            <span className="mono text-[8px] px-1 rounded-sm border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] uppercase">ID:{service.id}</span>
                         </span>
-                         <span className="mt-0.5 block text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{service.contentType} · min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span>
+                          <span className="mt-0.5 block text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{contentTypeLabel(service.contentType) ? `${contentTypeLabel(service.contentType)} · ` : ''}min {service.minQuantity.toLocaleString('es-ES')} · max {service.maxQuantity.toLocaleString('es-ES')}</span>
                          <div className="mt-1.5 flex flex-wrap gap-1 uppercase">
                           {service.pricePerThousandUsd != null && (
                              <span className="inline-flex items-center gap-1 border border-[hsl(var(--border))] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[hsl(var(--primary))] bg-[hsl(var(--primary)/.05)] rounded-sm">
@@ -610,26 +686,26 @@ function NewOrderPage() {
         {success && <p className="mt-3 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-[11px] text-[hsl(var(--accent))] rounded-sm uppercase">{success}</p>}
         <div className="mt-3 flex justify-end uppercase"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
       </form>
-        <aside className="terminal-panel h-fit p-2.5 uppercase"><p className="terminal-label text-[9px] uppercase">Vista previa</p>{selected ? <div className="mt-2 uppercase"><div className="mb-2 flex items-start justify-between gap-2 uppercase"><div><h3 className="text-[10px] font-bold uppercase">{selected.name}</h3><p className="mt-0.5 text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform} · {selected.contentType} · ID:{selected.id}</p></div><Sparkles size={14} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-2 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Precio / 1K</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatCoins(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatCoins(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><Clock3 size={12} className="mb-1.5 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><RefreshCw size={12} className="mb-1.5 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[175px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={17} className="mb-2 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[10px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
+        <aside className="terminal-panel h-fit p-2.5 uppercase"><p className="terminal-label text-[9px] uppercase">Vista previa</p>{selected ? <div className="mt-2 uppercase"><div className="mb-2 flex items-start justify-between gap-2 uppercase"><div><h3 className="text-[10px] font-bold uppercase">{displayServiceName(selected.id, selected.name)}</h3><p className="mt-0.5 text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform}{contentTypeLabel(selected.contentType) ? ` · ${contentTypeLabel(selected.contentType)}` : ''} · ID:{selected.id}</p></div><Sparkles size={14} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-2 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Precio / 1K</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatCoins(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatCoins(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><Clock3 size={12} className="mb-1.5 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><RefreshCw size={12} className="mb-1.5 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[175px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={17} className="mb-2 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[10px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
   </div>;
 }
 
 function ReconciliationCard({ order, onResolved }: { order: Order; onResolved: () => void }) {
-  const [providerOrderId, setProviderOrderId] = useState('');
+  const [trackingId, setTrackingId] = useState('');
   const [error, setError] = useState('');
   const [isResolving, setIsResolving] = useState(false);
   const resolve = async (resolution: 'attach' | 'release') => {
-    if (resolution === 'release' && !window.confirm('Confirma que verificaste en el proveedor que este pedido no fue creado. Esta accion libera el credito reservado.')) return;
+    if (resolution === 'release' && !window.confirm('Confirma que verificaste que este pedido no fue creado. Esta accion libera el credito reservado.')) return;
     setError('');
     setIsResolving(true);
     try {
-      const response = await fetch('/api/panel/orders/reconcile', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.id, resolution, providerOrderId: resolution === 'attach' ? providerOrderId.trim() : undefined }) });
+      const response = await fetch('/api/panel/orders/reconcile', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.id, resolution, trackingId: resolution === 'attach' ? trackingId.trim() : undefined }) });
       const result = await response.json().catch(() => null) as { error?: string } | null;
-      if (!response.ok) throw new Error(result?.error || 'No se pudo reconciliar la reserva.');
+      if (!response.ok) throw new Error(publicErrorMessage(result?.error, 'No se pudo verificar la reserva.'));
       onResolved();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo reconciliar la reserva.');
+      setError(publicErrorMessage(reason instanceof Error ? reason.message : undefined, 'No se pudo verificar la reserva.'));
     } finally {
       setIsResolving(false);
     }
@@ -637,8 +713,8 @@ function ReconciliationCard({ order, onResolved }: { order: Order; onResolved: (
   return <section className="terminal-panel border-[hsl(var(--primary)/.4)] p-4 uppercase">
     <p className="terminal-label text-[hsl(var(--primary))] uppercase">Verificacion requerida</p>
     <h3 className="mt-1 text-[11px] font-bold uppercase">{order.serviceName}</h3>
-    <p className="mt-2 text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">La respuesta del proveedor fue ambigua. No se enviara otro pedido ni se liberara credito hasta que confirmes el resultado.</p>
-    <div className="mt-3 flex flex-col gap-2 sm:flex-row uppercase"><input value={providerOrderId} onChange={(event) => setProviderOrderId(event.target.value)} placeholder="ID de pedido del proveedor" className="min-w-0 flex-1 rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2 text-[10px] outline-none focus:border-[hsl(var(--primary))]" /><button type="button" onClick={() => void resolve('attach')} disabled={isResolving || !providerOrderId.trim()} className="rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] disabled:opacity-50">Adjuntar ID</button></div>
+    <p className="mt-2 text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">No fue posible confirmar el registro de la solicitud. No se creara otro pedido ni se liberara credito hasta que confirmes el resultado.</p>
+    <div className="mt-3 flex flex-col gap-2 sm:flex-row uppercase"><input value={trackingId} onChange={(event) => setTrackingId(event.target.value)} placeholder="ID de seguimiento" className="min-w-0 flex-1 rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 py-2 text-[10px] outline-none focus:border-[hsl(var(--primary))]" /><button type="button" onClick={() => void resolve('attach')} disabled={isResolving || !trackingId.trim()} className="rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] disabled:opacity-50">Adjuntar ID</button></div>
     <button type="button" onClick={() => void resolve('release')} disabled={isResolving} className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))] disabled:opacity-50">Confirmar que no existe y liberar reserva</button>
     {error && <p className="mt-2 text-[10px] text-[hsl(var(--destructive))] uppercase">{error}</p>}
   </section>;
@@ -647,8 +723,14 @@ function ReconciliationCard({ order, onResolved }: { order: Order; onResolved: (
 function ActiveOrdersPage() {
   const { data: orders, isLoading, isError, refetch } = useGetOrders();
   const [now, setNow] = useState(() => Date.now());
+  const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
-  const active = useMemo(() => orders?.filter((order) => !isCompleted(order)) ?? [], [orders]);
+  const active = useMemo(() => orders?.filter((order) => !isTerminalOrder(order)) ?? [], [orders]);
+  const visibleActive = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return active;
+    return active.filter((order) => `${order.id} ${order.serviceId} ${order.serviceName} ${order.platform} ${order.link}`.toLowerCase().includes(term));
+  }, [active, search]);
   const reservations = active.filter((order) => order.needsReconciliation);
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 1000);
@@ -659,8 +741,12 @@ function ActiveOrdersPage() {
   return <div className="fade-up uppercase">
     <OrderSyncManager orders={active} />
     <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa automaticamente cantidad, inicio, enviados, faltantes y estado real de cada pedido." />
+    <div className="mb-2 flex flex-col justify-between gap-2 sm:flex-row sm:items-center uppercase">
+      <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))]"><Activity size={12} className="text-[hsl(var(--primary))]" /> {active.length} pedidos activos</div>
+      <div className="relative sm:w-72 uppercase"><Search size={13} className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))] uppercase" /><input data-testid="input-search-active" aria-label="Buscar pedidos activos" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por servicio o ID..." className="w-full rounded-sm border border-[hsl(var(--input))] bg-[hsl(var(--card))] py-2 pl-9 pr-3 text-[10px] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary))]" /></div>
+    </div>
     {reservations.length > 0 && <div className="mb-2 space-y-3 uppercase">{reservations.map((order) => <ReconciliationCard key={order.id} order={order} onResolved={() => { void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); }} />)}</div>}
-    <section className="terminal-panel overflow-hidden flex flex-col max-h-[700px] uppercase"><div className="grid shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] uppercase"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right uppercase">Enviados / total</span><span className="md:text-right uppercase">Actualizacion</span></div><div className="overflow-y-auto uppercase">{active.length ? active.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-3 uppercase"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecera en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-3 inline-flex items-center gap-2 text-[11px] font-bold text-[hsl(var(--primary))] uppercase">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</div></section>
+    <section className="terminal-panel flex max-h-[700px] flex-col overflow-hidden uppercase"><div className="grid shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] uppercase"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right uppercase">Enviados / total</span><span className="md:text-right uppercase">Actualizacion</span></div><div className="overflow-y-auto uppercase">{visibleActive.length ? visibleActive.map((order) => <OrderLine key={order.id} order={order} now={now} />) : <div className="p-3 uppercase"><EmptyState icon={search ? Search : CheckCircle2} title={search ? 'Sin coincidencias' : 'No hay pedidos activos'} description={search ? 'No encontramos pedidos con ese servicio o ID.' : 'Cuando registres un pedido, su avance aparecera en este espacio.'} action={search ? <button data-testid="button-clear-active-search" onClick={() => setSearch('')} className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">Limpiar busqueda <ArrowRight size={12} /></button> : <Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">Crear pedido <ArrowRight size={12} /></Link>} /></div>}</div></section>
       <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-bold"><RefreshCw size={13} /> Sincronizacion activa cada 15s</div>
   </div>;
 }

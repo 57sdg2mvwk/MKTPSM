@@ -156,7 +156,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Order"
         "202":
-          description: Order reservation is pending provider verification
+          description: Order reservation is pending confirmation
           content:
             application/json:
               schema:
@@ -182,7 +182,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "502":
-          description: Provider could not accept the order
+          description: The order could not be accepted at this time
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
@@ -195,7 +195,7 @@ paths:
     post:
       operationId: syncOrderStatus
       tags: [panel]
-      summary: Sync order status from service provider
+      summary: Sync order status
       requestBody:
         required: true
         content:
@@ -225,12 +225,12 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "409":
-          description: Order reservation is pending provider verification
+          description: Order reservation is pending confirmation
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "502":
-          description: Provider sync unavailable
+          description: Status synchronization unavailable
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
@@ -268,12 +268,12 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "409":
-          description: Order reservation is pending provider verification
+          description: Order reservation is pending confirmation
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "502":
-          description: Provider refill unavailable
+          description: Refill unavailable
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
@@ -281,7 +281,7 @@ paths:
     post:
       operationId: reconcileOrderReservation
       tags: [panel]
-      summary: Resolve a provider order reservation pending verification
+      summary: Resolve an order reservation pending verification
       requestBody:
         required: true
         content:
@@ -419,7 +419,7 @@ components:
       properties:
         orderId: { type: string, minLength: 1 }
         resolution: { type: string, enum: [attach, release] }
-        providerOrderId: { type: string, minLength: 1 }
+        trackingId: { type: string, minLength: 1 }
       required: [orderId, resolution]
     ErrorResponse:
       type: object

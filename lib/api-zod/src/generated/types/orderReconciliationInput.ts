@@ -12,5 +12,5 @@ export interface OrderReconciliationInput {
   orderId: string;
   resolution: OrderReconciliationInputResolution;
   /** @minLength 1 */
-  providerOrderId?: string;
+  trackingId?: string;
 }

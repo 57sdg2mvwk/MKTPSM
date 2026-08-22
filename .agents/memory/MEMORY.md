@@ -1,3 +1,6 @@
 - [Supabase connectivity](supabase-connectivity.md) — validate external database DNS reachability before schema push or auth bootstrap.
 - [Marketerum error responses](marketerum-error-responses.md) — provider errors can arrive as HTTP 200 JSON and must fail local actions.
 - [Provider order reservations](provider-order-reservations.md) — ambiguous paid-provider outcomes remain reserved; retries never resubmit.
+- [Provider status settlement](provider-status-settlement.md) — terminal provider states reconcile credit once; partials settle to the reported charge.
+- [VPS production hosting](vps-production-hosting.md) — cPanel serves the SPA while a private Node service handles same-origin `/api` requests.
+- [Whitelabel error boundary](whitelabel-error-boundary.md) — public bundles, contracts, and failures use neutral AMD language; never expose upstream terminology.

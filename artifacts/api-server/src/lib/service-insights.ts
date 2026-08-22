@@ -25,7 +25,7 @@ const median = (values: number[]) => {
 };
 
 const isCompleted = (status: string) => status === "Completado";
-const isFinal = (status: string) => ["Completado", "Cancelado", "Reembolso"].includes(status);
+const isFinal = (status: string) => ["Completado", "Cancelado", "Reembolso", "Parcial"].includes(status);
 
 export const calculateServiceInsights = (services: Array<{ id: string; pricePerThousandMicros: number | null }>, orders: ServiceMetricsInput[]) => {
   const values = new Map<string, ServiceInsight>();

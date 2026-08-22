@@ -675,7 +675,7 @@ export const getSyncOrderStatusUrl = () => {
 }
 
 /**
- * @summary Sync order status from service provider
+ * @summary Sync order status
  */
 export const syncOrderStatus = async (orderActionInput: OrderActionInput, options?: Parameters<typeof customFetch>[1]): Promise<Order> => {
 
@@ -724,7 +724,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SyncOrderStatusMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Sync order status from service provider
+ * @summary Sync order status
  */
 export const useSyncOrderStatus = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOrderStatus>>, TError,{data: BodyType<OrderActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -817,7 +817,7 @@ export const getReconcileOrderReservationUrl = () => {
 }
 
 /**
- * @summary Resolve a provider order reservation pending verification
+ * @summary Resolve an order reservation pending verification
  */
 export const reconcileOrderReservation = async (orderReconciliationInput: OrderReconciliationInput, options?: Parameters<typeof customFetch>[1]): Promise<Order> => {
 
@@ -866,7 +866,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReconcileOrderReservationMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Resolve a provider order reservation pending verification
+ * @summary Resolve an order reservation pending verification
  */
 export const useReconcileOrderReservation = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileOrderReservation>>, TError,{data: BodyType<OrderReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
