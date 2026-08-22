@@ -209,27 +209,28 @@ function Sidebar({ user, onClose }: { user: CurrentUser; onClose?: () => void })
     });
   };
   return (
-    <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-3 py-4">
-      <div className="flex items-center justify-between px-3 pb-7">
+    <aside className="flex h-full w-[132px] shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-2 py-4">
+      <div className="flex items-center justify-center px-2 pb-7">
         <Link href="/dashboard" data-testid="link-brand" onClick={onClose} className="flex items-center gap-3">
-          <AmdLogo className="h-[28px] w-[66px]" />
-          <div><p className="text-sm font-extrabold tracking-[.18em]">AMD</p><p className="mono text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Marketing digital</p></div>
+          <AmdLogo className="h-[31px] w-[74px]" />
         </Link>
         {onClose && <button data-testid="button-close-menu" onClick={onClose} className="rounded-md p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"><PanelLeftClose size={17} /></button>}
       </div>
-      <div className="px-3 pb-3"><p className="mono text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">Centro de operaciones</p></div>
-      <nav className="space-y-1">
+      <div className="px-1 pb-3 text-center"><p className="mono text-[8px] font-bold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Operaciones</p></div>
+      <nav className="space-y-1.5">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = location === href;
-          return <Link key={href} href={href} onClick={onClose} data-testid={`link-nav-${href.slice(1)}`} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${active ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}><Icon size={17} strokeWidth={active ? 2.3 : 1.8} /><span>{label}</span>{href === '/pedidos-en-proceso' && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]" />}</Link>;
+          const compactLabel = label === 'Nuevo pedido' ? 'Nuevo' : label === 'En proceso' ? 'Proceso' : label;
+          return <Link key={href} href={href} onClick={onClose} data-testid={`link-nav-${href.slice(1)}`} className={`group relative flex min-h-[68px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center transition ${active ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}><Icon size={18} strokeWidth={active ? 2.3 : 1.8} /><span className="text-[9px] font-extrabold uppercase tracking-[.08em]">{compactLabel}</span>{href === '/pedidos-en-proceso' && <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]" />}</Link>;
         })}
       </nav>
       <div className="mt-auto">
-        <div className="mb-3 rounded-lg border border-[hsl(var(--border)/.8)] bg-[hsl(var(--card)/.45)] p-3">
-          <div className="mb-2 flex items-center gap-2 text-[hsl(var(--accent))]"><ShieldCheck size={15} /><span className="text-xs font-bold">Sesión privada</span></div>
-          <p data-testid="text-sidebar-email" className="truncate text-xs text-[hsl(var(--muted-foreground))]">{user.email}</p>
+        <div className="mb-3 rounded-xl border border-[hsl(var(--border)/.8)] bg-[hsl(var(--card)/.45)] p-2.5 text-center">
+          <div className="mb-1.5 flex justify-center text-[hsl(var(--accent))]"><ShieldCheck size={15} /></div>
+          <p className="text-[9px] font-extrabold uppercase tracking-[.08em] text-[hsl(var(--accent))]">Sesion</p>
+          <p data-testid="text-sidebar-email" className="mt-1 truncate text-[9px] text-[hsl(var(--muted-foreground))]" title={user.email}>{user.email}</p>
         </div>
-        <button data-testid="button-logout" onClick={handleLogout} disabled={logout.isPending} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--destructive)/.08)] hover:text-[hsl(var(--destructive))] disabled:opacity-50"><LogOut size={17} />{logout.isPending ? 'Cerrando sesión…' : 'Cerrar sesión'}</button>
+        <button data-testid="button-logout" onClick={handleLogout} disabled={logout.isPending} className="flex w-full flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--destructive)/.08)] hover:text-[hsl(var(--destructive))] disabled:opacity-50"><LogOut size={17} /><span className="text-[9px] font-extrabold uppercase tracking-[.08em]">{logout.isPending ? 'Saliendo' : 'Salir'}</span></button>
       </div>
     </aside>
   );
@@ -242,7 +243,7 @@ function Shell({ user, children }: { user: CurrentUser; children: ReactNode }) {
     <div className="app-noise min-h-[100dvh] bg-[hsl(var(--background))]">
       <div className="fixed inset-y-0 left-0 z-40 hidden md:block"><Sidebar user={user} /></div>
       {menuOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setMenuOpen(false)}><div className="h-full w-[min(84vw,280px)]" onClick={(event) => event.stopPropagation()}><Sidebar user={user} onClose={() => setMenuOpen(false)} /></div></div>}
-      <main className="min-h-[100dvh] md:pl-[248px]">
+       <main className="min-h-[100dvh] md:pl-[132px]">
         <header className="sticky top-0 z-20 flex h-[70px] items-center justify-between border-b border-[hsl(var(--border)/.7)] bg-[hsl(var(--background)/.9)] px-5 backdrop-blur-xl md:px-9">
           <div className="flex items-center gap-3"><button data-testid="button-open-menu" onClick={() => setMenuOpen(true)} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] md:hidden"><Menu size={19} /></button><div><p className="mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">AMD / {location === '/dashboard' ? '01' : '02'}</p><h1 data-testid="text-page-title" className="mt-0.5 text-base font-extrabold">{pageTitles[location] || 'Página'}</h1></div></div>
           <div className="flex items-center gap-3"><div className="hidden items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]" />Sistema operativo</div><div className="grid h-8 w-8 place-items-center rounded-full border border-[hsl(var(--primary)/.4)] bg-[hsl(var(--primary)/.1)] text-xs font-bold text-[hsl(var(--primary))]" title={user.email}>{user.email.slice(0, 1).toUpperCase()}</div></div>
@@ -355,7 +356,6 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
         <div className="absolute -left-24 top-24 h-[420px] w-[420px] rounded-full border border-[hsl(var(--primary)/.12)]" />
         <div className="absolute -left-10 top-38 h-[300px] w-[300px] rounded-full border border-[hsl(var(--primary)/.08)]" />
         <div className="relative flex items-center gap-3">
-          <AmdLogo className="h-[42px] w-[100px]" />
           <p className="text-sm font-extrabold tracking-[.18em]">AMD <span className="font-medium tracking-normal text-[hsl(var(--muted-foreground))]">/ Marketing digital</span></p>
         </div>
         <div className="relative max-w-xl">
@@ -371,7 +371,6 @@ function LoginPage({ currentUser }: { currentUser?: CurrentUser }) {
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-[390px] fade-up">
           <div className="mb-10 lg:hidden">
-            <AmdLogo className="mb-8 h-[46px] w-[108px]" />
             <p className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Acceso privado</p>
           </div>
           <p className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Bienvenida de nuevo</p>
