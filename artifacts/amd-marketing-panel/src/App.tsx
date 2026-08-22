@@ -179,12 +179,12 @@ function ErrorState({ onRetry, compact = false }: { onRetry?: () => void; compac
 
 function EmptyState({ icon: Icon, title, description, action }: { icon: typeof PackageCheck; title: string; description: string; action?: ReactNode }) {
   return (
-    <div className="border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 text-center rounded-sm uppercase">
-      <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--primary))] uppercase">
-        <Icon size={21} />
+    <div className="border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 text-center rounded-sm uppercase">
+      <div className="mx-auto mb-1.5 grid h-8 w-8 place-items-center rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--primary))] uppercase">
+        <Icon size={15} />
       </div>
-      <p className="font-bold uppercase">{title}</p>
-      <p className="mx-auto mt-2 max-w-sm text-[11px] leading-6 text-[hsl(var(--muted-foreground))] uppercase">{description}</p>
+      <p className="text-[10px] font-bold uppercase">{title}</p>
+      <p className="mx-auto mt-1 max-w-sm text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">{description}</p>
       {action}
     </div>
   );
