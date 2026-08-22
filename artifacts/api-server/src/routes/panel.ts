@@ -37,6 +37,7 @@ const validateLinkForPlatform = (platform: string, value: string) => {
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
   const allowedHosts: Record<string, string[]> = {
     Facebook: ["facebook.com", "m.facebook.com", "fb.watch"],
+    Kick: ["kick.com"],
     Instagram: ["instagram.com"],
     TikTok: ["tiktok.com"],
     YouTube: ["youtube.com", "youtu.be"],
@@ -70,7 +71,7 @@ const cleanServiceName = (value: unknown, id: string) => {
 
 const providerPlatform = (service: Record<string, unknown>) => {
   const source = `${service.category ?? ""} ${service.name ?? ""}`.toLowerCase();
-  const platforms = ["Instagram", "Facebook", "TikTok", "YouTube", "Twitter", "Telegram", "Spotify", "Twitch", "Discord"];
+  const platforms = ["Instagram", "Facebook", "TikTok", "YouTube", "Twitter", "Telegram", "Spotify", "Kick", "Twitch", "Discord"];
   return platforms.find((platform) => source.includes(platform.toLowerCase())) ?? "Red social";
 };
 

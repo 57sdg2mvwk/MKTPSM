@@ -136,6 +136,7 @@ function validateLinkForPlatform(platform: string, value: string) {
   const host = url.hostname.toLowerCase().replace(/^www\./, '');
   const allowedHosts: Record<string, string[]> = {
     Facebook: ['facebook.com', 'm.facebook.com', 'fb.watch'],
+    Kick: ['kick.com'],
     Instagram: ['instagram.com'],
     TikTok: ['tiktok.com'],
     YouTube: ['youtube.com', 'youtu.be'],
