@@ -382,15 +382,23 @@ function ActiveOrdersPage() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const active = useMemo(() => orders?.filter((order) => !isCompleted(order)) ?? [], [orders]);
-  const syncOrder = (id: string) => { setSyncingId(id); sync.mutate({ data: { orderId: id } }, { onSuccess: () => { setNotice('Estado actualizado correctamente.'); void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); setSyncingId(null); }, onError: () => setSyncingId(null) }); };
+  const syncOrder = (id: string, automatic = false) => { setSyncingId(id); sync.mutate({ data: { orderId: id } }, { onSuccess: () => { if (!automatic) setNotice('Estado actualizado correctamente.'); void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); setSyncingId(null); }, onError: () => setSyncingId(null) }); };
   const refillOrder = (id: string) => { if (!window.confirm('¿Quieres solicitar una recarga para este pedido?')) return; refill.mutate({ data: { orderId: id } }, { onSuccess: () => { setNotice('Solicitud de recarga enviada.'); void queryClient.invalidateQueries({ queryKey: getGetOrdersQueryKey() }); void queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); } }); };
+  const activeOrderIds = active.map((order) => order.id).join(',');
+  useEffect(() => {
+    if (!activeOrderIds) return;
+    const syncActiveOrders = () => activeOrderIds.split(',').forEach((id) => syncOrder(id, true));
+    syncActiveOrders();
+    const interval = window.setInterval(syncActiveOrders, 30_000);
+    return () => window.clearInterval(interval);
+  }, [activeOrderIds]);
   if (isLoading) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." /><LoadingRows count={5} /></>;
   if (isError || !orders) return <><PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." /><ErrorState onRetry={() => void refetch()} /></>;
   return <div className="fade-up">
     <PageIntro eyebrow="03 / Seguimiento" title="Pedidos en proceso" description="Supervisa el avance y sincroniza los estados con el proveedor." action={<button data-testid="button-sync-all" onClick={() => active.forEach((order) => syncOrder(order.id))} disabled={sync.isPending || !active.length} className="inline-flex items-center justify-center gap-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3.5 py-2 text-xs font-bold transition hover:border-[hsl(var(--primary)/.6)] hover:text-[hsl(var(--primary))] disabled:opacity-50"><RefreshCw size={14} className={sync.isPending ? 'animate-spin' : ''} /> Sincronizar todo</button>} />
     {notice && <div data-testid="status-operation" className="mb-4 flex items-center gap-2 border border-[hsl(var(--accent)/.3)] bg-[hsl(var(--accent)/.07)] px-4 py-3 text-xs text-[hsl(var(--accent))]"><Check size={15} />{notice}<button data-testid="button-dismiss-notice" onClick={() => setNotice('')} className="ml-auto p-1"><X size={14} /></button></div>}
     <section className="terminal-panel overflow-hidden"><div className="grid border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-5 py-3 terminal-label md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px]"><span>Pedido / servicio</span><span>Avance</span><span className="md:text-right">Cantidad</span><span /></div>{active.length ? active.map((order) => <OrderLine key={order.id} order={order} onSync={syncOrder} onRefill={refillOrder} syncing={syncingId === order.id} />) : <div className="p-5"><EmptyState icon={CheckCircle2} title="No hay pedidos activos" description="Cuando registres un pedido, su avance aparecerá en este espacio." action={<Link href="/nuevo-pedido" data-testid="link-empty-active-order" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[hsl(var(--primary))]">Crear pedido <ArrowRight size={14} /></Link>} /></div>}</section>
-    <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><RefreshCw size={13} /> La sincronización consulta el estado actual del proveedor.</div>
+     <div className="mt-4 flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><RefreshCw size={13} /> Sincronización automática cada 30 s. También puedes actualizar manualmente.</div>
   </div>;
 }
 
