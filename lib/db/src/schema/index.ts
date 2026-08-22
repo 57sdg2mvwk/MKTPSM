@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("amd_users", {
   id: text("id").primaryKey(),
@@ -13,7 +13,9 @@ export const sessionsTable = pgTable("amd_sessions", {
   tokenHash: text("token_hash").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("amd_sessions_user_id_idx").on(table.userId),
+}));
 
 export const servicesTable = pgTable("amd_services", {
   id: text("id").primaryKey(),
@@ -40,7 +42,10 @@ export const ordersTable = pgTable("amd_orders", {
   refillAvailable: boolean("refill_available").notNull().default(false),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  userCreatedIdx: index("amd_orders_user_created_idx").on(table.userId, table.createdAt),
+  providerOrderIdx: index("amd_orders_provider_order_idx").on(table.providerOrderId),
+}));
 
 export type User = typeof usersTable.$inferSelect;
 export type Session = typeof sessionsTable.$inferSelect;

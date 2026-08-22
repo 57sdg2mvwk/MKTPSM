@@ -19,6 +19,7 @@ import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso"];
+let providerServicesSyncedAt = 0;
 
 const ensureServices = async () => {
   const existing = await db.select().from(servicesTable);
@@ -80,7 +81,10 @@ const getRows = async (userId: string, status?: string) => {
 
 router.get("/panel/services", async (req, res): Promise<void> => {
   if (!(await requireUser(req, res))) return;
-  void marketerum.services().catch(() => undefined);
+  if (Date.now() - providerServicesSyncedAt > 5 * 60 * 1000) {
+    providerServicesSyncedAt = Date.now();
+    void marketerum.services().catch(() => undefined);
+  }
   const services = await ensureServices();
   res.json(GetServicesResponse.parse(services.map(({ providerServiceId: _providerServiceId, ...service }) => service)));
 });
