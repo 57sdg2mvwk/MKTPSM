@@ -25,11 +25,7 @@ const ensureServices = async () => {
   const existing = await db.select().from(servicesTable);
   if (existing.length) return existing;
   const seed = [
-    { id: "instagram-followers", name: "Seguidores de Instagram", platform: "Instagram", contentType: "Seguidores", description: "Crecimiento gradual para perfiles públicos.", minQuantity: 100, maxQuantity: 100000, supportsRefill: true, estimatedTime: "0–24 horas", providerServiceId: "instagram-followers" },
-    { id: "instagram-likes", name: "Me gusta de Instagram", platform: "Instagram", contentType: "Interacciones", description: "Interacciones para publicaciones públicas.", minQuantity: 50, maxQuantity: 50000, supportsRefill: true, estimatedTime: "0–12 horas", providerServiceId: "instagram-likes" },
-    { id: "tiktok-views", name: "Visualizaciones de TikTok", platform: "TikTok", contentType: "Visualizaciones", description: "Mayor alcance para videos publicados.", minQuantity: 500, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "0–6 horas", providerServiceId: "tiktok-views" },
-    { id: "youtube-views", name: "Visualizaciones de YouTube", platform: "YouTube", contentType: "Visualizaciones", description: "Impulso para videos y contenido público.", minQuantity: 100, maxQuantity: 500000, supportsRefill: false, estimatedTime: "0–48 horas", providerServiceId: "youtube-views" },
-    { id: "facebook-likes", name: "Me gusta de Facebook", platform: "Facebook", contentType: "Interacciones", description: "Interacciones para páginas y publicaciones.", minQuantity: 100, maxQuantity: 100000, supportsRefill: true, estimatedTime: "0–24 horas", providerServiceId: "facebook-likes" },
+    { id: "4665", name: "Facebook Post Likes · HQ & Real · 7D Refill", platform: "Facebook", contentType: "Me gusta", description: "Likes de Facebook de alta calidad con recarga durante 7 días.", minQuantity: 20, maxQuantity: 500000, supportsRefill: true, estimatedTime: "Según proveedor", providerServiceId: "4665" },
   ];
   await db.insert(servicesTable).values(seed);
   return db.select().from(servicesTable);

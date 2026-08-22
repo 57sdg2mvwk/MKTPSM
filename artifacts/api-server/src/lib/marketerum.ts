@@ -5,14 +5,14 @@ const getApiKey = () => process.env.MARKETERUM_API_KEY;
 const request = async (action: string, payload?: Record<string, unknown>) => {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("Provider configuration unavailable");
-  const response = await fetch(`${BASE_URL}/${action}`, {
+  const body = new URLSearchParams({ key: apiKey, action });
+  for (const [name, value] of Object.entries(payload ?? {})) {
+    if (value !== undefined && value !== null) body.set(name, String(value));
+  }
+  const response = await fetch(BASE_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      "X-API-Key": apiKey,
-    },
-    body: JSON.stringify(payload ?? {}),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
   });
   if (!response.ok) throw new Error(`Provider request failed with status ${response.status}`);
   return (await response.json()) as Record<string, unknown>;
