@@ -15,7 +15,7 @@ import {
   SyncOrderStatusResponse,
 } from "@workspace/api-zod";
 import { deriveOrderMetrics, toNonNegativeInteger } from "../lib/order-metrics";
-import { CreditNotStartedError, CURRENT_SERVICE_PRICE_FACTOR_BPS, InsufficientCreditError, LEGACY_SERVICE_PRICE_FACTOR_BPS, UnpricedServiceError, applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, microsToUsd } from "../lib/credit";
+import { CreditNotStartedError, CURRENT_SERVICE_PRICE_FACTOR_PPM, InsufficientCreditError, LEGACY_SERVICE_PRICE_FACTOR_PPM, PREVIOUS_SERVICE_PRICE_FACTOR_PPM, UnpricedServiceError, applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, microsToUsd } from "../lib/credit";
 import { calculateServiceInsights } from "../lib/service-insights";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
 import { ProviderRejectedError, marketerum } from "../lib/marketerum";
@@ -27,7 +27,8 @@ const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso", "Parcial"];
 const configuredServiceIds = new Set(["1934", "8631", "910", "998", "1129", "5559", "4665", "4668", "11161", "9397", "11228", "11241"]);
 const RESERVATION_RECONCILIATION_GRACE_MS = 30_000;
-const SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-6_05pct";
+const SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-16_655pct";
+const PREVIOUS_SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-6_05pct";
 const LEGACY_SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-1pct";
 const whitelabelServiceProfiles: Record<string, { name: string; platform?: string; contentType: string; description: string }> = {
   "8631": { name: "Facebook Perfil · Seguidores Globales", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook." },
@@ -457,18 +458,20 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
       const [markupReservation] = type === "status"
         ? await tx.select({ kind: creditLedgerTable.kind }).from(creditLedgerTable).where(and(
           eq(creditLedgerTable.orderId, lockedOrder.id),
-          inArray(creditLedgerTable.kind, [SERVICE_MARKUP_LEDGER_KIND, LEGACY_SERVICE_MARKUP_LEDGER_KIND]),
+          inArray(creditLedgerTable.kind, [SERVICE_MARKUP_LEDGER_KIND, PREVIOUS_SERVICE_MARKUP_LEDGER_KIND, LEGACY_SERVICE_MARKUP_LEDGER_KIND]),
         )).limit(1)
         : [];
-      const markupFactorBasisPoints = markupReservation?.kind === SERVICE_MARKUP_LEDGER_KIND
-        ? CURRENT_SERVICE_PRICE_FACTOR_BPS
+      const markupFactorPartsPerMillion = markupReservation?.kind === SERVICE_MARKUP_LEDGER_KIND
+        ? CURRENT_SERVICE_PRICE_FACTOR_PPM
+        : markupReservation?.kind === PREVIOUS_SERVICE_MARKUP_LEDGER_KIND
+          ? PREVIOUS_SERVICE_PRICE_FACTOR_PPM
         : markupReservation?.kind === LEGACY_SERVICE_MARKUP_LEDGER_KIND
-          ? LEGACY_SERVICE_PRICE_FACTOR_BPS
+          ? LEGACY_SERVICE_PRICE_FACTOR_PPM
           : undefined;
       const confirmedCostMicros = confirmedProviderCostMicros == null
         ? undefined
-        : markupFactorBasisPoints != null
-          ? applyServiceMarkupMicros(confirmedProviderCostMicros, markupFactorBasisPoints) ?? undefined
+        : markupFactorPartsPerMillion != null
+          ? applyServiceMarkupMicros(confirmedProviderCostMicros, markupFactorPartsPerMillion) ?? undefined
           : confirmedProviderCostMicros;
       const settlement = type === "status"
         ? settleOrderCredit({
