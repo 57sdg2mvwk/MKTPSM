@@ -141,6 +141,7 @@ const whitelabelServiceNames: Record<string, string> = {
   '1934': 'Facebook Seguidores · Audiencia de Pagina',
   '910': 'Facebook Pagina · Likes y Seguidores',
   '1129': 'Facebook Seguidores · Calidad Estable',
+  '5559': 'Facebook Seguidores · Calidad Estable',
   '998': 'Facebook Seguidores · Paginas',
   '4665': 'Facebook Likes · Recarga 7 Dias',
   '4668': 'Facebook Likes · Recarga 60 Dias',

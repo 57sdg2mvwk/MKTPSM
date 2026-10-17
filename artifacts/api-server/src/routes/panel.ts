@@ -25,13 +25,14 @@ import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso", "Parcial"];
-const configuredServiceIds = new Set(["1934", "8631", "910", "998", "1129", "4665", "4668", "11161", "9397", "11228", "11241"]);
+const configuredServiceIds = new Set(["1934", "8631", "910", "998", "1129", "5559", "4665", "4668", "11161", "9397", "11228", "11241"]);
 const RESERVATION_RECONCILIATION_GRACE_MS = 30_000;
-const whitelabelServiceProfiles: Record<string, { name: string; contentType: string; description: string }> = {
+const whitelabelServiceProfiles: Record<string, { name: string; platform?: string; contentType: string; description: string }> = {
   "8631": { name: "Facebook Perfil · Seguidores Globales", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook." },
   "1934": { name: "Facebook Seguidores · Audiencia de Pagina", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
   "910": { name: "Facebook Pagina · Likes y Seguidores", contentType: "Likes y Seguidores", description: "Interaccion combinada para paginas de Facebook." },
   "1129": { name: "Facebook Seguidores · Calidad Estable", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
+  "5559": { name: "Facebook Seguidores · Calidad Estable", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
   "998": { name: "Facebook Seguidores · Paginas", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
   "4665": { name: "Facebook Likes · Recarga 7 Dias", contentType: "Me gusta", description: "Interaccion para publicaciones con recarga durante 7 dias." },
   "4668": { name: "Facebook Likes · Recarga 60 Dias", contentType: "Me gusta", description: "Interaccion para publicaciones con recarga durante 60 dias." },
@@ -77,6 +78,7 @@ const ensureServices = async () => {
     { id: "1934", name: "Facebook Seguidores · Audiencia de Pagina", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 50, maxQuantity: 200000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "1934" },
     { id: "910", name: "Facebook Pagina · Likes y Seguidores", platform: "Facebook", contentType: "Likes y Seguidores", description: "Interaccion combinada para paginas de Facebook.", minQuantity: 100, maxQuantity: 2000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "910" },
     { id: "1129", name: "Facebook Seguidores · Calidad Estable", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 10, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "1129" },
+    { id: "5559", name: "Facebook Seguidores · Calidad Estable", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 10, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "5559" },
     { id: "998", name: "Facebook Seguidores · Paginas", platform: "Facebook", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook.", minQuantity: 10, maxQuantity: 1000000, supportsRefill: false, estimatedTime: "En tiempo real", providerServiceId: "998" },
     { id: "4665", name: "Facebook Likes · Recarga 7 Dias", platform: "Facebook", contentType: "Me gusta", description: "Interaccion para publicaciones con recarga durante 7 dias.", minQuantity: 20, maxQuantity: 500000, supportsRefill: true, estimatedTime: "Tiempo variable", providerServiceId: "4665" },
   ];
@@ -107,7 +109,7 @@ const syncLiveServices = async () => {
         return {
           id,
           name: profile?.name ?? `Servicio social ${id}`,
-          platform: providerPlatform(service),
+          platform: profile?.platform ?? providerPlatform(service),
           contentType: profile?.contentType ?? "Servicio",
           description: profile?.description ?? "Servicio social disponible en tiempo real.",
           minQuantity: Number(service.min),
