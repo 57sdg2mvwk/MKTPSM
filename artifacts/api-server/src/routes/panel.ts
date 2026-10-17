@@ -15,7 +15,7 @@ import {
   SyncOrderStatusResponse,
 } from "@workspace/api-zod";
 import { deriveOrderMetrics, toNonNegativeInteger } from "../lib/order-metrics";
-import { CreditNotStartedError, InsufficientCreditError, UnpricedServiceError, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, microsToUsd } from "../lib/credit";
+import { CreditNotStartedError, InsufficientCreditError, UnpricedServiceError, applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, microsToUsd } from "../lib/credit";
 import { calculateServiceInsights } from "../lib/service-insights";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
 import { ProviderRejectedError, marketerum } from "../lib/marketerum";
@@ -27,6 +27,7 @@ const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso", "Parcial"];
 const configuredServiceIds = new Set(["1934", "8631", "910", "998", "1129", "5559", "4665", "4668", "11161", "9397", "11228", "11241"]);
 const RESERVATION_RECONCILIATION_GRACE_MS = 30_000;
+const SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-1pct";
 const whitelabelServiceProfiles: Record<string, { name: string; platform?: string; contentType: string; description: string }> = {
   "8631": { name: "Facebook Perfil · Seguidores Globales", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook." },
   "1934": { name: "Facebook Seguidores · Audiencia de Pagina", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
@@ -207,7 +208,7 @@ const getServiceCatalog = async (userId: string) => {
     const insight = insights.get(service.id)!;
     return {
       ...service,
-      pricePerThousandUsd: microsToUsd(pricePerThousandMicros),
+      pricePerThousandUsd: microsToUsd(applyServiceMarkupMicros(pricePerThousandMicros)),
       ...insight,
     };
   });
@@ -276,8 +277,9 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: "La cantidad no está disponible para este servicio." });
     return;
   }
-  const costMicros = service ? estimateCostMicros(service.pricePerThousandMicros, parsed.data.quantity) : undefined;
-  if (costMicros == null) {
+  const providerCostMicros = service ? estimateCostMicros(service.pricePerThousandMicros, parsed.data.quantity) : undefined;
+  const costMicros = service ? estimateCostMicros(applyServiceMarkupMicros(service.pricePerThousandMicros), parsed.data.quantity) : undefined;
+  if (providerCostMicros == null || costMicros == null) {
     res.status(503).json({ error: "El precio del servicio no esta disponible. Intenta mas tarde." });
     return;
   }
@@ -318,8 +320,19 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
         periodId: period.id,
         orderId,
         kind: "reserva-pedido",
-        amountMicros: costMicros,
+        amountMicros: providerCostMicros,
       });
+      const markupMicros = costMicros - providerCostMicros;
+      if (markupMicros > 0) {
+        await tx.insert(creditLedgerTable).values({
+          id: randomUUID(),
+          userId: user.id,
+          periodId: period.id,
+          orderId,
+          kind: SERVICE_MARKUP_LEDGER_KIND,
+          amountMicros: markupMicros,
+        });
+      }
       await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId, userId: user.id, status: "Pendiente" });
       return { order: createdOrder, isNew: true };
     });
@@ -430,7 +443,7 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
       : providerStatus;
     const { progress } = deriveOrderMetrics({ quantity: row.order.quantity, status, progress: row.order.progress, remains });
     const now = new Date();
-    const confirmedCostMicros = type === "status" ? decimalToMicros(provider.charge) : undefined;
+    const confirmedProviderCostMicros = type === "status" ? decimalToMicros(provider.charge) : undefined;
     const [updated] = await db.transaction(async (tx) => {
       const [lockedOrder] = await tx.select().from(ordersTable).where(eq(ordersTable.id, row.order.id)).for("update");
       if (!lockedOrder) throw new Error("Order not found");
@@ -440,6 +453,17 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
           eq(creditLedgerTable.kind, "reversion-proveedor"),
         )).limit(1)
         : [];
+      const [markupReservation] = type === "status"
+        ? await tx.select({ id: creditLedgerTable.id }).from(creditLedgerTable).where(and(
+          eq(creditLedgerTable.orderId, lockedOrder.id),
+          eq(creditLedgerTable.kind, SERVICE_MARKUP_LEDGER_KIND),
+        )).limit(1)
+        : [];
+      const confirmedCostMicros = confirmedProviderCostMicros == null
+        ? undefined
+        : markupReservation
+          ? applyServiceMarkupMicros(confirmedProviderCostMicros) ?? undefined
+          : confirmedProviderCostMicros;
       const settlement = type === "status"
         ? settleOrderCredit({
           status,

@@ -56,6 +56,9 @@ export const getCreditWindow = (now = new Date()) => {
 
 export const microsToUsd = (micros: number | null | undefined) => micros == null ? null : Number((micros / 1_000_000).toFixed(6));
 
+export const applyServiceMarkupMicros = (providerCostMicros: number | null) =>
+  providerCostMicros == null ? null : Math.ceil((providerCostMicros * 101) / 100);
+
 export const decimalToMicros = (value: unknown): number | undefined => {
   if (value == null || value === "") return undefined;
   const normalized = String(value).trim();

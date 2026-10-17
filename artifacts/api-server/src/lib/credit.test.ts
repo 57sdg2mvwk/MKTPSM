@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decimalToMicros, estimateCostMicros, getCreditWindow, microsToUsd } from "./credit";
+import { applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditWindow, microsToUsd } from "./credit";
 
 test("keeps direct provider pricing at micro-dollar precision", () => {
   assert.equal(decimalToMicros("0.0064"), 6400);
@@ -12,6 +12,13 @@ test("keeps direct provider pricing at micro-dollar precision", () => {
 test("estimates a service cost without losing fractions below one cent", () => {
   assert.equal(estimateCostMicros(320_000, 20), 6400);
   assert.equal(estimateCostMicros(null, 20), undefined);
+});
+
+test("applies the 1% markup to displayed rates and customer charges", () => {
+  const markedUpRateMicros = applyServiceMarkupMicros(196_000);
+  assert.equal(markedUpRateMicros, 197_960);
+  assert.equal(estimateCostMicros(markedUpRateMicros, 1_000), 197_960);
+  assert.equal(applyServiceMarkupMicros(null), null);
 });
 
 test("starts the initial Mexico credit cycle on August 22, 2026", () => {
