@@ -155,13 +155,17 @@ export const GetOrdersResponse = zod.array(GetOrdersResponseItem)
 
 export const createOrderBodyRequestIdMin = 8;
 
+export const createOrderBodyExpectedPricePerThousandMicrosMin = 0;
+export const createOrderBodyExpectedPricePerThousandMicrosMultipleOf = 1;
+
 
 
 export const CreateOrderBody = zod.object({
   "serviceId": zod.string().min(1),
   "link": zod.string(),
   "quantity": zod.number().min(1),
-  "requestId": zod.string().min(createOrderBodyRequestIdMin)
+  "requestId": zod.string().min(createOrderBodyRequestIdMin),
+  "expectedPricePerThousandMicros": zod.number().min(createOrderBodyExpectedPricePerThousandMicrosMin).multipleOf(createOrderBodyExpectedPricePerThousandMicrosMultipleOf)
 })
 
 export const CreateOrderResponse = zod.object({

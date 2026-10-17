@@ -15,13 +15,13 @@ import {
   SyncOrderStatusResponse,
 } from "@workspace/api-zod";
 import { deriveOrderMetrics, toNonNegativeInteger } from "../lib/order-metrics";
-import { CreditNotStartedError, CURRENT_SERVICE_PRICE_FACTOR_PPM, InsufficientCreditError, LEGACY_SERVICE_PRICE_FACTOR_PPM, PREVIOUS_SERVICE_PRICE_FACTOR_PPM, UnpricedServiceError, applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, microsToUsd } from "../lib/credit";
+import { BASE_SERVICE_PRICE_FACTOR_PPM, CreditNotStartedError, InsufficientCreditError, LEGACY_SERVICE_PRICE_FACTOR_PPM, PREVIOUS_SERVICE_PRICE_FACTOR_PPM, UnpricedServiceError, applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditBalance, getCreditWindow, getOrCreateCreditPeriod, getServicePriceFactorPpm, microsToUsd } from "../lib/credit";
 import { calculateServiceInsights } from "../lib/service-insights";
 import { getUserFromToken, SESSION_COOKIE } from "../lib/auth";
 import { ProviderRejectedError, marketerum } from "../lib/marketerum";
 import { isFinalOrderStatus, normalizeProviderStatus, settleOrderCredit } from "../lib/order-status";
 import { logger } from "../lib/logger";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 const statuses = ["En proceso", "Completado", "Pendiente", "Cancelado", "Reembolso", "Parcial"];
@@ -30,6 +30,9 @@ const RESERVATION_RECONCILIATION_GRACE_MS = 30_000;
 const SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-16_655pct";
 const PREVIOUS_SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-6_05pct";
 const LEGACY_SERVICE_MARKUP_LEDGER_KIND = "reserva-aumento-servicio-1pct";
+const VARIABLE_SERVICE_MARKUP_PERCENTAGES = [5, 6, 7, 8, 9, 10] as const;
+const variableServiceMarkupLedgerKind = (percent: number) => `reserva-aumento-servicio-variable-${percent}pct`;
+const VARIABLE_SERVICE_MARKUP_LEDGER_KINDS = VARIABLE_SERVICE_MARKUP_PERCENTAGES.map(variableServiceMarkupLedgerKind);
 const whitelabelServiceProfiles: Record<string, { name: string; platform?: string; contentType: string; description: string }> = {
   "8631": { name: "Facebook Perfil · Seguidores Globales", contentType: "Seguidores", description: "Crecimiento de seguidores para perfiles publicos de Facebook." },
   "1934": { name: "Facebook Seguidores · Audiencia de Pagina", contentType: "Seguidores", description: "Crecimiento de seguidores para paginas de Facebook." },
@@ -46,9 +49,16 @@ const whitelabelServiceProfiles: Record<string, { name: string; platform?: strin
 };
 const LIVE_SERVICES_CACHE_MS = 60_000;
 class PendingReservationError extends Error {}
+class PriceChangedError extends Error {}
 
-let liveServicesCache: { fetchedAt: number; services: Array<typeof servicesTable.$inferSelect> } | null = null;
-let liveServicesRefresh: Promise<Array<typeof servicesTable.$inferSelect>> | null = null;
+type LiveServicesSnapshot = {
+  fetchedAt: number;
+  services: Array<typeof servicesTable.$inferSelect>;
+  additionalMarkupPercent: number;
+};
+
+let liveServicesCache: LiveServicesSnapshot | null = null;
+let liveServicesRefresh: Promise<LiveServicesSnapshot> | null = null;
 
 const validateLinkForPlatform = (platform: string, value: string) => {
   let url: URL;
@@ -97,7 +107,7 @@ const providerPlatform = (service: Record<string, unknown>) => {
 
 const syncLiveServices = async () => {
   if (liveServicesCache && Date.now() - liveServicesCache.fetchedAt < LIVE_SERVICES_CACHE_MS) {
-    return liveServicesCache.services;
+    return liveServicesCache;
   }
   if (liveServicesRefresh) return liveServicesRefresh;
   liveServicesRefresh = (async () => {
@@ -132,8 +142,13 @@ const syncLiveServices = async () => {
       });
     }
     const refreshed = await db.select().from(servicesTable).where(inArray(servicesTable.id, [...configuredServiceIds]));
-    liveServicesCache = { fetchedAt: Date.now(), services: refreshed };
-    return refreshed;
+    const snapshot: LiveServicesSnapshot = {
+      fetchedAt: Date.now(),
+      services: refreshed,
+      additionalMarkupPercent: randomInt(5, 11),
+    };
+    liveServicesCache = snapshot;
+    return snapshot;
   })();
   try {
     return await liveServicesRefresh;
@@ -203,14 +218,15 @@ const getCreditSummary = async (userId: string) => db.transaction(async (tx) => 
 });
 
 const getServiceCatalog = async (userId: string) => {
-  const services = await syncLiveServices();
+  const snapshot = await syncLiveServices();
+  const priceFactorPpm = getServicePriceFactorPpm(snapshot.additionalMarkupPercent);
   const orders = await db.select().from(ordersTable).where(eq(ordersTable.userId, userId));
-  const insights = calculateServiceInsights(services, orders);
-  return services.map(({ providerServiceId: _providerServiceId, pricePerThousandMicros, ...service }) => {
+  const insights = calculateServiceInsights(snapshot.services, orders);
+  return snapshot.services.map(({ providerServiceId: _providerServiceId, pricePerThousandMicros, ...service }) => {
     const insight = insights.get(service.id)!;
     return {
       ...service,
-      pricePerThousandUsd: microsToUsd(applyServiceMarkupMicros(pricePerThousandMicros)),
+      pricePerThousandUsd: microsToUsd(applyServiceMarkupMicros(pricePerThousandMicros, priceFactorPpm)),
       ...insight,
     };
   });
@@ -262,10 +278,13 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Revisa los datos del pedido." });
     return;
   }
-  let [service] = await db.select().from(servicesTable).where(eq(servicesTable.id, parsed.data.serviceId)).limit(1);
+  let service: typeof servicesTable.$inferSelect | undefined = (await db.select().from(servicesTable).where(eq(servicesTable.id, parsed.data.serviceId)).limit(1))[0];
+  let additionalMarkupPercent = 0;
   try {
     if (configuredServiceIds.has(parsed.data.serviceId)) {
-      [service] = (await syncLiveServices()).filter((candidate) => candidate.id === parsed.data.serviceId);
+      const snapshot = await syncLiveServices();
+      service = snapshot.services.find((candidate) => candidate.id === parsed.data.serviceId);
+      additionalMarkupPercent = snapshot.additionalMarkupPercent;
     }
   } catch {
     res.status(503).json({ error: "El servicio no está disponible en este momento." });
@@ -279,8 +298,18 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: "La cantidad no está disponible para este servicio." });
     return;
   }
+  if (!Number.isSafeInteger(parsed.data.expectedPricePerThousandMicros)) {
+    res.status(400).json({ error: "Revisa los datos del pedido." });
+    return;
+  }
+  const priceFactorPpm = getServicePriceFactorPpm(additionalMarkupPercent);
+  const customerPricePerThousandMicros = service
+    ? applyServiceMarkupMicros(service.pricePerThousandMicros, priceFactorPpm)
+    : undefined;
   const providerCostMicros = service ? estimateCostMicros(service.pricePerThousandMicros, parsed.data.quantity) : undefined;
-  const costMicros = service ? estimateCostMicros(applyServiceMarkupMicros(service.pricePerThousandMicros), parsed.data.quantity) : undefined;
+  const costMicros = customerPricePerThousandMicros == null
+    ? undefined
+    : estimateCostMicros(customerPricePerThousandMicros, parsed.data.quantity);
   if (providerCostMicros == null || costMicros == null) {
     res.status(503).json({ error: "El precio del servicio no esta disponible. Intenta mas tarde." });
     return;
@@ -297,6 +326,9 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
         .where(and(eq(ordersTable.userId, user.id), eq(ordersTable.requestId, parsed.data.requestId)))
         .limit(1);
       if (reservationAfterLock) return { order: reservationAfterLock, isNew: false };
+      if (parsed.data.expectedPricePerThousandMicros !== customerPricePerThousandMicros) {
+        throw new PriceChangedError();
+      }
       const [unresolvedReservation] = await tx.select().from(ordersTable)
         .where(and(eq(ordersTable.userId, user.id), eq(ordersTable.status, "Pendiente"), isNull(ordersTable.providerOrderId)))
         .limit(1);
@@ -325,20 +357,24 @@ router.post("/panel/orders", async (req, res): Promise<void> => {
         amountMicros: providerCostMicros,
       });
       const markupMicros = costMicros - providerCostMicros;
-      if (markupMicros > 0) {
-        await tx.insert(creditLedgerTable).values({
-          id: randomUUID(),
-          userId: user.id,
-          periodId: period.id,
-          orderId,
-          kind: SERVICE_MARKUP_LEDGER_KIND,
-          amountMicros: markupMicros,
-        });
-      }
+      await tx.insert(creditLedgerTable).values({
+        id: randomUUID(),
+        userId: user.id,
+        periodId: period.id,
+        orderId,
+        kind: configuredServiceIds.has(service!.id)
+          ? variableServiceMarkupLedgerKind(additionalMarkupPercent)
+          : SERVICE_MARKUP_LEDGER_KIND,
+        amountMicros: markupMicros,
+      });
       await tx.insert(orderStatusEventsTable).values({ id: randomUUID(), orderId, userId: user.id, status: "Pendiente" });
       return { order: createdOrder, isNew: true };
     });
   } catch (error) {
+    if (error instanceof PriceChangedError) {
+      res.status(409).json({ error: "El costo cambio desde la ultima consulta. Revisa el nuevo importe." });
+      return;
+    }
     if (error instanceof InsufficientCreditError) {
       res.status(402).json({ error: "Credito insuficiente para este pedido. Espera al proximo reinicio mensual." });
       return;
@@ -458,15 +494,25 @@ const action = async (req: any, res: any, type: "status" | "refill"): Promise<vo
       const [markupReservation] = type === "status"
         ? await tx.select({ kind: creditLedgerTable.kind }).from(creditLedgerTable).where(and(
           eq(creditLedgerTable.orderId, lockedOrder.id),
-          inArray(creditLedgerTable.kind, [SERVICE_MARKUP_LEDGER_KIND, PREVIOUS_SERVICE_MARKUP_LEDGER_KIND, LEGACY_SERVICE_MARKUP_LEDGER_KIND]),
+          inArray(creditLedgerTable.kind, [
+            SERVICE_MARKUP_LEDGER_KIND,
+            PREVIOUS_SERVICE_MARKUP_LEDGER_KIND,
+            LEGACY_SERVICE_MARKUP_LEDGER_KIND,
+            ...VARIABLE_SERVICE_MARKUP_LEDGER_KINDS,
+          ]),
         )).limit(1)
         : [];
+      const variableMarkupPercent = VARIABLE_SERVICE_MARKUP_PERCENTAGES.find(
+        (percent) => markupReservation?.kind === variableServiceMarkupLedgerKind(percent),
+      );
       const markupFactorPartsPerMillion = markupReservation?.kind === SERVICE_MARKUP_LEDGER_KIND
-        ? CURRENT_SERVICE_PRICE_FACTOR_PPM
+        ? BASE_SERVICE_PRICE_FACTOR_PPM
         : markupReservation?.kind === PREVIOUS_SERVICE_MARKUP_LEDGER_KIND
           ? PREVIOUS_SERVICE_PRICE_FACTOR_PPM
-        : markupReservation?.kind === LEGACY_SERVICE_MARKUP_LEDGER_KIND
-          ? LEGACY_SERVICE_PRICE_FACTOR_PPM
+          : markupReservation?.kind === LEGACY_SERVICE_MARKUP_LEDGER_KIND
+            ? LEGACY_SERVICE_PRICE_FACTOR_PPM
+            : variableMarkupPercent != null
+              ? getServicePriceFactorPpm(variableMarkupPercent)
           : undefined;
       const confirmedCostMicros = confirmedProviderCostMicros == null
         ? undefined

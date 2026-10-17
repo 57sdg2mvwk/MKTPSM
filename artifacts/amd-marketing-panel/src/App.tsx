@@ -657,11 +657,33 @@ function NewOrderPage() {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId, link: link.trim(), quantity: Number(quantity), requestId: requestId.current }),
+        body: JSON.stringify({
+          serviceId,
+          link: link.trim(),
+          quantity: Number(quantity),
+          requestId: requestId.current,
+          expectedPricePerThousandMicros: Math.round(latestSelected.pricePerThousandUsd * 1_000_000),
+        }),
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) {
         requestId.current = null;
+        if (response.status === 409 && result?.error === 'El costo cambio desde la ultima consulta. Revisa el nuevo importe.') {
+          const refreshedPrices = await refetch();
+          const refreshedService = refreshedPrices.data?.find((service) => service.id === serviceId);
+          if (!refreshedPrices.isError && refreshedService?.pricePerThousandUsd != null) {
+            setPriceChangeNotice({
+              serviceId: refreshedService.id,
+              serviceName: displayServiceName(refreshedService.id, refreshedService.name),
+              previousRate: latestSelected.pricePerThousandUsd,
+              currentRate: refreshedService.pricePerThousandUsd,
+            });
+            setSubmitError('');
+          } else {
+            setSubmitError('No se pudo validar el costo actual. Intenta de nuevo.');
+          }
+          return;
+        }
         throw new Error(publicErrorMessage(result?.error, 'No se pudo crear el pedido en este momento.'));
       }
       requestId.current = null;

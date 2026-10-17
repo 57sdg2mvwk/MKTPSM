@@ -104,6 +104,8 @@ export interface OrderInput {
   quantity: number;
   /** @minLength 8 */
   requestId: string;
+  /** @minimum 0 */
+  expectedPricePerThousandMicros: number;
 }
 
 export interface OrderActionInput {

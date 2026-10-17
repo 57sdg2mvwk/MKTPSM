@@ -177,7 +177,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "409":
-          description: Existing request is pending or rejected
+          description: Existing request is pending, rejected, or the quoted price changed
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
@@ -408,7 +408,8 @@ components:
         link: { type: string }
         quantity: { type: number, minimum: 1 }
         requestId: { type: string, minLength: 8 }
-      required: [serviceId, link, quantity, requestId]
+        expectedPricePerThousandMicros: { type: number, minimum: 0, multipleOf: 1 }
+      required: [serviceId, link, quantity, requestId, expectedPricePerThousandMicros]
     OrderActionInput:
       type: object
       properties:

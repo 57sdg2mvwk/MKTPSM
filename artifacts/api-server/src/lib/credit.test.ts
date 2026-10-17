@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditWindow, LEGACY_SERVICE_PRICE_FACTOR_PPM, microsToUsd, PREVIOUS_SERVICE_PRICE_FACTOR_PPM } from "./credit";
+import { applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditWindow, getServicePriceFactorPpm, LEGACY_SERVICE_PRICE_FACTOR_PPM, microsToUsd, PREVIOUS_SERVICE_PRICE_FACTOR_PPM } from "./credit";
 
 test("keeps direct provider pricing at micro-dollar precision", () => {
   assert.equal(decimalToMicros("0.0064"), 6400);
@@ -21,6 +21,15 @@ test("raises the current user price by 10% and preserves previous order prices",
   assert.equal(applyServiceMarkupMicros(196_000, PREVIOUS_SERVICE_PRICE_FACTOR_PPM), 207_858);
   assert.equal(applyServiceMarkupMicros(196_000, LEGACY_SERVICE_PRICE_FACTOR_PPM), 197_960);
   assert.equal(applyServiceMarkupMicros(null), null);
+});
+
+test("applies a selected live surcharge to the fixed post-increase price", () => {
+  const factorAtFivePercent = getServicePriceFactorPpm(5);
+  const factorAtTenPercent = getServicePriceFactorPpm(10);
+  assert.equal(factorAtFivePercent, 1_224_878);
+  assert.equal(factorAtTenPercent, 1_283_205);
+  assert.equal(applyServiceMarkupMicros(196_000, factorAtFivePercent), 240_077);
+  assert.equal(applyServiceMarkupMicros(196_000, factorAtTenPercent), 251_509);
 });
 
 test("starts the initial Mexico credit cycle on August 22, 2026", () => {

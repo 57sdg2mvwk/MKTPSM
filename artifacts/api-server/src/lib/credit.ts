@@ -56,13 +56,20 @@ export const getCreditWindow = (now = new Date()) => {
 
 export const microsToUsd = (micros: number | null | undefined) => micros == null ? null : Number((micros / 1_000_000).toFixed(6));
 
-export const CURRENT_SERVICE_PRICE_FACTOR_PPM = 1_166_550;
+export const BASE_SERVICE_PRICE_FACTOR_PPM = 1_166_550;
 export const PREVIOUS_SERVICE_PRICE_FACTOR_PPM = 1_060_500;
 export const LEGACY_SERVICE_PRICE_FACTOR_PPM = 1_010_000;
 
+export const getServicePriceFactorPpm = (additionalMarkupPercent: number) => {
+  if (!Number.isInteger(additionalMarkupPercent) || additionalMarkupPercent < 0 || additionalMarkupPercent > 100) {
+    throw new RangeError("Service markup percentage must be an integer from 0 to 100");
+  }
+  return Math.ceil((BASE_SERVICE_PRICE_FACTOR_PPM * (100 + additionalMarkupPercent)) / 100);
+};
+
 export const applyServiceMarkupMicros = (
   providerCostMicros: number | null,
-  factorPartsPerMillion = CURRENT_SERVICE_PRICE_FACTOR_PPM,
+  factorPartsPerMillion = BASE_SERVICE_PRICE_FACTOR_PPM,
 ) => providerCostMicros == null ? null : Math.ceil((providerCostMicros * factorPartsPerMillion) / 1_000_000);
 
 export const decimalToMicros = (value: unknown): number | undefined => {
