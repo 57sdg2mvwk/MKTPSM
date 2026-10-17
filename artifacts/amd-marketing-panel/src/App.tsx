@@ -287,6 +287,7 @@ function OrderMetric({ label, value, tone = 'default', isCurrency = false }: { l
 }
 
 function OrderLine({ order, now }: { order: Order; now: number }) {
+  const destination = order.link.replace(/^https?:\/\/(?:www\.)?/, '').replace(/\/$/, '');
   return (
     <div data-testid={`row-order-${order.id}`} className="group grid gap-1.5 border-b border-[hsl(var(--border)/.7)] px-2.5 py-1.5 transition last:border-0 hover:bg-[hsl(var(--secondary)/.36)] md:grid-cols-[minmax(210px,1.5fr)_minmax(150px,1fr)_120px_145px] md:items-center uppercase">
       <div className="min-w-0 uppercase">
@@ -312,6 +313,22 @@ function OrderLine({ order, now }: { order: Order; now: number }) {
       </div>
       <div className="flex items-center justify-end gap-2 text-right uppercase">
         <span className="terminal-label text-[8px] uppercase">{lastUpdatedLabel(order.lastSyncedAt, now)}</span>
+      </div>
+      <div className="col-span-full flex min-w-0 items-center gap-2 border-t border-[hsl(var(--border)/.7)] pt-2 uppercase">
+        <Link2 size={12} className="shrink-0 text-[hsl(var(--muted-foreground))]" />
+        <span className="terminal-label shrink-0 text-[8px] uppercase">Destino</span>
+        <a
+          data-testid={`link-order-destination-${order.id}`}
+          href={order.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={order.link}
+          aria-label={`Abrir destino del pedido ${shortId(order.id)} en una nueva pestaña`}
+          className="flex min-w-0 items-center gap-1 truncate text-[9px] text-[hsl(var(--primary))] hover:underline"
+        >
+          <span className="truncate">{destination}</span>
+          <ExternalLink size={10} className="shrink-0" />
+        </a>
       </div>
       <div className="col-span-full grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[hsl(var(--border)/.7)] pt-2 sm:grid-cols-5 uppercase">
         <OrderMetric label="Cantidad total" value={order.quantity} />
