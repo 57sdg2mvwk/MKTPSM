@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditWindow, microsToUsd } from "./credit";
+import { applyServiceMarkupMicros, decimalToMicros, estimateCostMicros, getCreditWindow, LEGACY_SERVICE_PRICE_FACTOR_BPS, microsToUsd } from "./credit";
 
 test("keeps direct provider pricing at micro-dollar precision", () => {
   assert.equal(decimalToMicros("0.0064"), 6400);
@@ -14,10 +14,11 @@ test("estimates a service cost without losing fractions below one cent", () => {
   assert.equal(estimateCostMicros(null, 20), undefined);
 });
 
-test("applies the 1% markup to displayed rates and customer charges", () => {
+test("raises the current user price by 5% over the existing 1% markup", () => {
   const markedUpRateMicros = applyServiceMarkupMicros(196_000);
-  assert.equal(markedUpRateMicros, 197_960);
-  assert.equal(estimateCostMicros(markedUpRateMicros, 1_000), 197_960);
+  assert.equal(markedUpRateMicros, 207_858);
+  assert.equal(estimateCostMicros(markedUpRateMicros, 5_000), 1_039_290);
+  assert.equal(applyServiceMarkupMicros(196_000, LEGACY_SERVICE_PRICE_FACTOR_BPS), 197_960);
   assert.equal(applyServiceMarkupMicros(null), null);
 });
 

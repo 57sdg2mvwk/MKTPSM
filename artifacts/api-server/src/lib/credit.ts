@@ -56,8 +56,13 @@ export const getCreditWindow = (now = new Date()) => {
 
 export const microsToUsd = (micros: number | null | undefined) => micros == null ? null : Number((micros / 1_000_000).toFixed(6));
 
-export const applyServiceMarkupMicros = (providerCostMicros: number | null) =>
-  providerCostMicros == null ? null : Math.ceil((providerCostMicros * 101) / 100);
+export const CURRENT_SERVICE_PRICE_FACTOR_BPS = 10_605;
+export const LEGACY_SERVICE_PRICE_FACTOR_BPS = 10_100;
+
+export const applyServiceMarkupMicros = (
+  providerCostMicros: number | null,
+  factorBasisPoints = CURRENT_SERVICE_PRICE_FACTOR_BPS,
+) => providerCostMicros == null ? null : Math.ceil((providerCostMicros * factorBasisPoints) / 10_000);
 
 export const decimalToMicros = (value: unknown): number | undefined => {
   if (value == null || value === "") return undefined;
