@@ -548,7 +548,7 @@ function DashboardPage() {
 }
 
 function NewOrderPage() {
-  const { data: services, isLoading, isError, refetch } = useGetServices({ query: { queryKey: getGetServicesQueryKey(), staleTime: 60_000, gcTime: 10 * 60_000, refetchOnWindowFocus: false } });
+  const { data: services, isLoading, isError, isFetching, dataUpdatedAt, refetch } = useGetServices({ query: { queryKey: getGetServicesQueryKey(), staleTime: 30_000, gcTime: 10 * 60_000, refetchInterval: 60_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true } });
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [serviceId, setServiceId] = useState('');
@@ -562,7 +562,30 @@ function NewOrderPage() {
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [selectedContentType, setSelectedContentType] = useState('TODOS');
   const requestId = useRef<string | null>(null);
+  const [priceChangeNotice, setPriceChangeNotice] = useState<{
+    serviceId: string;
+    serviceName: string;
+    previousRate: number | null;
+    currentRate: number | null;
+  } | null>(null);
+  const previousSelectedRate = useRef<{ serviceId: string; rate: number | null } | null>(null);
   const selected = useMemo(() => services?.find((service) => service.id === serviceId), [services, serviceId]);
+  useEffect(() => {
+    if (!selected) {
+      previousSelectedRate.current = null;
+      return;
+    }
+    const previous = previousSelectedRate.current;
+    if (previous?.serviceId === selected.id && previous.rate !== selected.pricePerThousandUsd) {
+      setPriceChangeNotice({
+        serviceId: selected.id,
+        serviceName: displayServiceName(selected.id, selected.name),
+        previousRate: previous.rate,
+        currentRate: selected.pricePerThousandUsd,
+      });
+    }
+    previousSelectedRate.current = { serviceId: selected.id, rate: selected.pricePerThousandUsd };
+  }, [selected]);
   const projectedCostUsd = selected?.pricePerThousandUsd != null && Number.isFinite(Number(quantity)) && Number(quantity) > 0
     ? (selected.pricePerThousandUsd * Number(quantity)) / 1000
     : null;
@@ -605,10 +628,30 @@ function NewOrderPage() {
     return !Object.values(next).some(Boolean);
   };
   const submit = async () => {
+    if (priceChangeNotice?.serviceId === serviceId) return;
     if (!validate()) return;
     setSubmitError('');
     setIsSubmitting(true);
     try {
+      const priceCheck = await refetch();
+      if (priceCheck.isError || !priceCheck.data) {
+        setSubmitError('No se pudieron actualizar los precios. Intenta de nuevo en unos momentos.');
+        return;
+      }
+      const latestSelected = priceCheck.data.find((service) => service.id === serviceId);
+      if (!latestSelected || latestSelected.pricePerThousandUsd == null) {
+        setSubmitError('La tarifa de este servicio ya no está disponible. Elige otro servicio.');
+        return;
+      }
+      if (selected && latestSelected.pricePerThousandUsd !== selected.pricePerThousandUsd) {
+        setPriceChangeNotice({
+          serviceId: latestSelected.id,
+          serviceName: displayServiceName(latestSelected.id, latestSelected.name),
+          previousRate: selected.pricePerThousandUsd,
+          currentRate: latestSelected.pricePerThousandUsd,
+        });
+        return;
+      }
       requestId.current ??= crypto.randomUUID();
       const response = await fetch('/api/panel/orders', {
         method: 'POST',
@@ -633,9 +676,43 @@ function NewOrderPage() {
     }
   };
   if (isLoading) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." /><LoadingRows count={3} /></>;
-  if (isError || !services) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." /><ErrorState onRetry={() => void refetch()} /></>;
+  if (!services) return <><PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." /><ErrorState onRetry={() => void refetch()} /></>;
   return <div className="fade-up uppercase">
     <PageIntro eyebrow="02 / Alta" title="Nuevo pedido" description="Configura una nueva solicitud para ponerla en seguimiento operacion." />
+    <div data-testid="notice-api-pricing" role="status" aria-live="polite" className="mb-2 flex flex-col gap-2 rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.06)] p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-2.5">
+        <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]">
+          {isFetching ? <LoaderCircle size={14} className="animate-spin" /> : <CircleHelp size={14} />}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold tracking-[.08em] text-[hsl(var(--primary))]">PRECIOS DE LA API · ACTUALIZACIÓN AUTOMÁTICA</p>
+          <p className="mt-1 text-[9px] leading-4 text-[hsl(var(--muted-foreground))]">
+            La API del proveedor se consulta cada minuto y sus tarifas pueden cambiar. Se revisan antes de crear el pedido; si el precio cambia, verás el nuevo costo y podrás confirmarlo.
+          </p>
+        </div>
+      </div>
+      <span data-testid="text-price-sync-status" className={`inline-flex shrink-0 items-center gap-1.5 pl-9 text-[8px] font-bold uppercase sm:pl-0 ${isFetching || isError ? 'text-[hsl(var(--accent))]' : 'text-[hsl(var(--muted-foreground))]'}`} aria-live="polite">
+        {isFetching ? 'Actualizando precios…' : isError ? 'Sin conexión · tarifa anterior' : `Actualizado ${new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit' }).format(dataUpdatedAt)}`}
+      </span>
+    </div>
+    {priceChangeNotice?.serviceId === serviceId && (
+      <div data-testid="alert-service-price-changed" role="alert" className="mb-2 flex flex-col gap-2 rounded-sm border border-[hsl(var(--accent)/.4)] bg-[hsl(var(--accent)/.08)] p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-2">
+          <AlertCircle size={14} className="mt-0.5 shrink-0 text-[hsl(var(--accent))]" />
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold text-[hsl(var(--accent))]">CAMBIÓ LA TARIFA DEL SERVICIO</p>
+            <p className="mt-1 text-[9px] leading-4 text-[hsl(var(--foreground))]">
+              {priceChangeNotice.serviceName}: {priceChangeNotice.previousRate == null ? 'Sin tarifa' : formatCoins(priceChangeNotice.previousRate)} / 1K → {priceChangeNotice.currentRate == null ? 'No disponible' : `${formatCoins(priceChangeNotice.currentRate)} / 1K`}. Revisa el nuevo costo estimado antes de continuar.
+            </p>
+          </div>
+        </div>
+        {priceChangeNotice.currentRate != null && (
+          <button type="button" data-testid="button-ack-price-change" onClick={() => setPriceChangeNotice(null)} className="ml-6 shrink-0 self-start rounded-sm border border-[hsl(var(--accent)/.45)] px-2.5 py-1.5 text-[8px] font-bold text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent)/.1)] sm:ml-0 sm:self-auto">
+            Entendido, revisar precio
+          </button>
+        )}
+      </div>
+    )}
     <div className="grid gap-2 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,.7fr)] uppercase">
        <form noValidate className="terminal-panel p-2.5 md:p-3 uppercase" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
          <div className="mb-2 flex items-center gap-2.5 border-b border-[hsl(var(--border))] pb-3 uppercase"><div className="grid h-7 w-7 place-items-center rounded-sm border border-[hsl(var(--primary)/.3)] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))] uppercase"><Target size={14} /></div><div><p className="terminal-label text-[9px] uppercase">Nueva solicitud</p><h3 className="mt-0.5 text-[10px] font-bold uppercase">Detalles del pedido</h3></div></div>
@@ -643,7 +720,7 @@ function NewOrderPage() {
             <div><span className="terminal-label mb-1.5 block text-[9px] uppercase">Red y servicio</span>
              <div className="mb-2 flex flex-wrap gap-1 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-1 uppercase" role="tablist" aria-label="Red social">
                {platforms.map((platform) => (
-                 <button key={platform} type="button" role="tab" aria-selected={selectedPlatform === platform} onClick={() => { setSelectedPlatform(platform); setSelectedContentType('TODOS'); setServiceId(''); }} className={`rounded-sm px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider transition ${selectedPlatform === platform ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}>{platform}</button>
+                  <button key={platform} type="button" role="tab" aria-selected={selectedPlatform === platform} onClick={() => { setSelectedPlatform(platform); setSelectedContentType('TODOS'); setServiceId(''); setPriceChangeNotice(null); }} className={`rounded-sm px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider transition ${selectedPlatform === platform ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'}`}>{platform}</button>
                ))}
              </div>
               <div className="mb-1.5 flex flex-col gap-1.5 sm:flex-row uppercase">
@@ -659,7 +736,7 @@ function NewOrderPage() {
                {filteredServices.length ? filteredServices.map((service) => (
                   <div key={service.id} className="border border-[hsl(var(--border))] bg-[hsl(var(--background))] rounded-sm uppercase">
                      <label key={service.id} className={`flex cursor-pointer items-start gap-2.5 px-2.5 py-2 transition hover:bg-[hsl(var(--secondary)/.5)] ${selected?.id === service.id ? 'bg-[hsl(var(--primary)/.07)]' : ''}`}>
-                       <input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[hsl(var(--primary))]" />
+                        <input data-testid={`radio-service-${service.id}`} type="radio" name="service" value={service.id} checked={serviceId === service.id} onChange={() => { setServiceId(service.id); setPriceChangeNotice(null); setErrors((current) => ({ ...current, service: undefined, quantity: undefined })); }} className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[hsl(var(--primary))]" />
                       <span className="min-w-0 flex-1 uppercase">
                          <span className="block text-[10px] font-bold flex items-center gap-1.5 uppercase">
                            {displayServiceName(service.id, service.name)}
@@ -702,7 +779,7 @@ function NewOrderPage() {
         </div>
         {submitError && <p className="mt-3 border border-[hsl(var(--destructive)/.25)] bg-[hsl(var(--destructive)/.08)] p-3 text-[11px] text-[hsl(var(--destructive))] rounded-sm uppercase">{submitError}</p>}
         {success && <p className="mt-3 border border-[hsl(var(--accent)/.25)] bg-[hsl(var(--accent)/.08)] p-3 text-[11px] text-[hsl(var(--accent))] rounded-sm uppercase">{success}</p>}
-        <div className="mt-3 flex justify-end uppercase"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success)} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <Plus size={15} />}{isSubmitting ? 'Creando pedido…' : 'Crear pedido'}</button></div>
+        <div className="mt-3 flex justify-end uppercase"><button type="button" data-testid="button-submit-order" onClick={() => void submit()} disabled={isSubmitting || Boolean(success) || selected?.pricePerThousandUsd == null || priceChangeNotice?.serviceId === serviceId} className="inline-flex items-center gap-2 rounded-sm border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary-foreground))] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{isSubmitting ? <LoaderCircle size={15} className="animate-spin uppercase" /> : <Plus size={15} />}{isSubmitting ? 'Validando precio…' : 'Crear pedido'}</button></div>
       </form>
         <aside className="terminal-panel h-fit p-2.5 uppercase"><p className="terminal-label text-[9px] uppercase">Vista previa</p>{selected ? <div className="mt-2 uppercase"><div className="mb-2 flex items-start justify-between gap-2 uppercase"><div><h3 className="text-[10px] font-bold uppercase">{displayServiceName(selected.id, selected.name)}</h3><p className="mt-0.5 text-[9px] text-[hsl(var(--muted-foreground))] uppercase">{selected.platform}{contentTypeLabel(selected.contentType) ? ` · ${contentTypeLabel(selected.contentType)}` : ''} · ID:{selected.id}</p></div><Sparkles size={14} className="text-[hsl(var(--primary))] uppercase" /></div><p className="text-[10px] leading-5 text-[hsl(var(--muted-foreground))] uppercase">{selected.description}</p><div className="mt-2 grid grid-cols-2 gap-px border border-[hsl(var(--border))] bg-[hsl(var(--border))] uppercase"><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Precio / 1K</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--primary))] uppercase">{formatCoins(selected.pricePerThousandUsd)}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><p className="terminal-label text-[8px] uppercase">Coste estimado</p><p className="mono mt-1 text-[10px] font-bold text-[hsl(var(--accent))] uppercase">{quantity ? formatCoins(projectedCostUsd) : 'Indica cantidad'}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><Clock3 size={12} className="mb-1.5 text-[hsl(var(--primary))] uppercase" /><p className="terminal-label text-[8px] uppercase">Tiempo estimado</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.estimatedTime}</p></div><div className="bg-[hsl(var(--card))] p-2 uppercase"><RefreshCw size={12} className="mb-1.5 text-[hsl(var(--accent))] uppercase" /><p className="terminal-label text-[8px] uppercase">Recarga</p><p className="mt-0.5 text-[9px] font-bold uppercase">{selected.supportsRefill ? 'Disponible' : 'No disponible'}</p></div></div></div> : <div className="flex min-h-[175px] flex-col items-center justify-center text-center uppercase"><PackageCheck size={17} className="mb-2 text-[hsl(var(--muted-foreground))] uppercase" /><p className="text-[10px] font-bold uppercase">Selecciona un servicio</p><p className="mt-1 max-w-[220px] text-[9px] leading-4 text-[hsl(var(--muted-foreground))] uppercase">Veras aqui sus condiciones antes de confirmar.</p></div>}</aside>
     </div>
